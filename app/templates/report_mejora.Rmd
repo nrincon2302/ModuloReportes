@@ -1,0 +1,113 @@
+---
+title: "Reporte de Acciones de Mejora"
+author: "Sistema de Seguimiento"
+date: '`r paste(format(Sys.time(), "%d"), "de", c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[as.numeric(format(Sys.time(), "%m"))], "de", format(Sys.time(), "%Y"))`'
+output:
+  pdf_document:
+    latex_engine: xelatex
+    keep_tex: false
+geometry: "left=2.5cm, right=2.5cm, top=3.5cm, bottom=2.5cm"
+header-includes: |
+  \usepackage{fancyhdr}
+  \usepackage{graphicx}
+  \usepackage{float}
+  \usepackage{fontspec}
+  \pagestyle{fancy}
+  \fancyhf{}
+  \fancyhead[L]{\includegraphics[height=0.8cm]{logo.png}}
+  \fancyhead[R]{Reporte de Seguimiento y Evaluación}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0.5pt}
+  \setlength{\headheight}{30pt}
+  \setmainfont{MuseoSansCond-500}[Path=fonts/,Extension=.otf]
+  \setsansfont{MuseoSansCond-500}[Path=fonts/,Extension=.otf]
+params:
+  entidad: NULL
+  datos_acciones: NULL
+  mostrar_todos: FALSE
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(dplyr)
+
+fuente_base <- "MuseoSansCond-500"
+
+if (file.exists("fonts/MuseoSansCond-500.otf")) {
+  sysfonts::font_add(family = fuente_base, regular = "fonts/MuseoSansCond-500.otf")
+  showtext_auto()
+}
+
+theme_set(
+  theme_minimal(base_family = fuente_base) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      axis.title = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+)
+
+# Validar datos
+tiene_datos <- !is.null(params$datos_acciones) && 
+               is.data.frame(params$datos_acciones) && 
+               nrow(params$datos_acciones) > 0
+```
+
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+\includegraphics[height=4cm]{logo.png}
+
+\vspace{1cm}
+{\fontsize{26}{30}\selectfont\textbf{Reporte de Acciones de Mejora}\par}
+\vspace{0.5cm}
+{\large Generado por el Sistema de Seguimiento\par}
+\vfill
+{\large `r paste(format(Sys.time(), "%d"), "de", c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[as.numeric(format(Sys.time(), "%m"))], "de", format(Sys.time(), "%Y"))`\par}
+\end{titlepage}
+
+\newpage
+
+# Resumen
+
+-   **Entidad:** `r params$entidad`
+-   **Fecha:** `r format(Sys.Date(), '%d/%m/%Y')`
+
+```{r stats, results='asis'}
+if (tiene_datos) {
+  knitr::asis_output(paste0("\n- **Total de acciones:** ", nrow(params$datos_acciones), "\n"))
+} else {
+  knitr::asis_output("\nNo hay datos disponibles.\n\n")
+}
+```
+
+# Acciones Identificadas
+
+```{r acciones, results='asis'}
+if (tiene_datos) {
+  for (i in 1:nrow(params$datos_acciones)) {
+    fila <- params$datos_acciones[i, ]
+    
+    knitr::asis_output(paste0("\n## Indicador: ", as.character(fila$Indicador), " \n"))
+    knitr::asis_output(paste0("CRITERIO:", as.character(fila$Criterios), "\n\n"))
+    knitr::asis_output("**Acciones Sugeridas:**\n\n")
+    knitr::asis_output(paste0(as.character(fila$`Acciones Sugeridas`), "\n\n"))
+    
+    if (!is.na(fila$`Herramientas de Apoyo`) && fila$`Herramientas de Apoyo` != "") {
+      knitr::asis_output("**Herramientas de Apoyo:**\n\n")
+      knitr::asis_output(paste0(as.character(fila$`Herramientas de Apoyo`), "\n\n"))
+    }
+    
+    knitr::asis_output("\\hrulefill\n\n")
+  }
+}
+```
+
+# Recomendaciones
+
+1.  Priorizar las acciones segun impacto
+2.  Asignar responsables
+3.  Establecer cronograma
+4.  Monitorear progreso
+5.  Evaluar resultados
+6.  Ajustar segun necesidad

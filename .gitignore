@@ -1,0 +1,7 @@
+.env
+.Rhistory
+.RData
+.Rproj.user
+.Renviron
+.Renviron.site
+.DS_Store

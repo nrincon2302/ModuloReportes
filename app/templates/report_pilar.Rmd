@@ -1,0 +1,331 @@
+---
+title: "Reporte de Análisis por Dimensión"
+author: "Generado por el Sistema de Seguimiento"
+date: '`r paste(format(Sys.time(), "%d"), "de", c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[as.numeric(format(Sys.time(), "%m"))], "de", format(Sys.time(), "%Y"))`'
+output:
+  pdf_document:
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    keep_tex: false
+    latex_engine: xelatex
+geometry: "left=2.5cm, right=2.5cm, top=3.5cm, bottom=2.5cm"
+header-includes:
+  - \usepackage{fancyhdr}
+  - \usepackage{graphicx}
+  - \usepackage{float}
+  - \usepackage{fontspec}
+  - \pagestyle{fancy}
+  - \fancyhf{}
+  - \fancyhead[L]{\includegraphics[height=0.8cm]{logo.png}}
+  - \fancyhead[R]{Reporte de Análisis por Dimensión}
+  - \fancyfoot[C]{\thepage}
+  - \renewcommand{\headrulewidth}{0.5pt}
+  - \setlength{\headheight}{30pt}
+  - \setmainfont{MuseoSansCond-500}[Path=fonts/,Extension=.otf]
+  - \setsansfont{MuseoSansCond-500}[Path=fonts/,Extension=.otf]
+params:
+  componente: "Satisfacción"
+  pilar_nombre: "No especificado"
+  dimension_nombre: "No especificado"
+  indicador_seleccionado: "No especificado"
+  nivel_consulta: "No especificado"
+  sectores_seleccionados: NULL
+  entidades_seleccionadas: NULL
+  datos_dimension: NULL
+  datos_filtrados: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, fig.width = 7, fig.height = 4.5, fig.align = 'center')
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(tidyr)
+library(showtext)
+
+fuente_base <- "MuseoSansCond-500"
+
+if (file.exists("fonts/MuseoSansCond-500.otf")) {
+  sysfonts::font_add(family = fuente_base, regular = "fonts/MuseoSansCond-500.otf")
+  showtext_auto()
+}
+
+theme_set(
+  theme_minimal(base_family = fuente_base) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      axis.title = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+)
+
+# Validar que los datos existen
+tiene_datos <- !is.null(params$datos_dimension) && nrow(params$datos_dimension) > 0
+tiene_datos_filtrados <- !is.null(params$datos_filtrados) && nrow(params$datos_filtrados) > 0
+
+# Pre-calcular datos agregados
+if (tiene_datos) {
+  
+  # Ranking de indicadores
+  datos_ranking <- params$datos_dimension %>%
+    group_by(Indicador) %>%
+    summarise(Valor = suppressWarnings(mean(as.numeric(Valor), na.rm = TRUE)), .groups = 'drop') %>%
+    filter(!is.na(Valor)) %>%
+    mutate(Valor = round(Valor, 1)) %>%
+    arrange(desc(Valor)) %>%
+    mutate(Indicador = factor(Indicador, levels = Indicador))
+
+  if (tiene_datos_filtrados) {
+    # Datos por Canal
+    if ("Canal" %in% names(params$datos_filtrados)) {
+      datos_canal <- params$datos_filtrados %>%
+        group_by(Canal) %>%
+        summarise(Valor = suppressWarnings(mean(as.numeric(Valor), na.rm = TRUE)), .groups = 'drop') %>%
+        filter(!is.na(Canal), !is.na(Valor)) %>%
+        mutate(Valor = round(Valor, 1)) %>%
+        arrange(desc(Valor)) %>%
+        mutate(Canal = factor(Canal, levels = Canal))
+    } else {
+      datos_canal <- NULL
+    }
+    
+    # Datos por Periodo
+    if ("Periodo" %in% names(params$datos_filtrados)) {
+      datos_periodo <- params$datos_filtrados %>%
+        group_by(Periodo) %>%
+        summarise(Valor = suppressWarnings(mean(as.numeric(Valor), na.rm = TRUE)), .groups = 'drop') %>%
+        filter(!is.na(Periodo), !is.na(Valor)) %>%
+        mutate(Valor = round(Valor, 1)) %>%
+        mutate(Periodo = factor(as.character(Periodo), levels = unique(as.character(Periodo)))) %>%
+        arrange(Periodo)
+    } else {
+      datos_periodo <- NULL
+    }
+  } else {
+    datos_canal <- NULL
+    datos_periodo <- NULL
+  }
+} else {
+  datos_ranking <- NULL
+  datos_canal <- NULL
+  datos_periodo <- NULL
+}
+
+# Función para determinar color según valor
+get_color <- function(value) {
+  if (is.na(value)) return("#CCCCCC")
+  if (value < 90) return("#E3272A")   # Crítico: Rojo
+  if (value < 98) return("#F9D248")   # Aceptable: Amarillo
+  return("#8CBE23")                    # Óptimo: Verde
+}
+
+# Función para formatear lista de selecciones
+formatear_seleccion <- function(items) {
+  if (is.null(items) || length(items) == 0) {
+    return("Ninguno")
+  }
+  if (length(items) > 5) {
+    return(paste0(paste(items[1:5], collapse = ", "), " (y ", length(items) - 5, " más)"))
+  }
+  return(paste(items, collapse = ", "))
+}
+
+Sys.setlocale("LC_TIME", "es_ES.UTF-8")
+Sys.setlocale("LC_TIME", "Spanish")
+
+```
+
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+\includegraphics[height=4cm]{logo.png}
+
+\vspace{1cm}
+{\fontsize{26}{30}\selectfont\textbf{Reporte de Análisis por Dimensión}\par}
+\vspace{0.5cm}
+{\large Generado por el Sistema de Seguimiento\par}
+\vfill
+{\large `r paste(format(Sys.time(), "%d"), "de", c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[as.numeric(format(Sys.time(), "%m"))], "de", format(Sys.time(), "%Y"))`\par}
+\end{titlepage}
+
+\newpage
+
+# Resumen de la Consulta
+
+Este reporte presenta el análisis detallado de una dimensión específica dentro del sistema de seguimiento y evaluación del servicio a la ciudadanía.
+
+**Información del Componente:**
+
+- **Componente:** `r params$componente`
+- **Pilar:** `r params$pilar_nombre`
+- **Dimensión:** `r params$dimension_nombre`
+- **Indicador Seleccionado:** `r params$indicador_seleccionado`
+
+**Filtros Aplicados:**
+
+- **Nivel de Consulta:** `r params$nivel_consulta`
+
+```{r filtros_aplicados, results='asis'}
+if (params$nivel_consulta == "Sector") {
+  if (!is.null(params$sectores_seleccionados) && length(params$sectores_seleccionados) > 0) {
+    knitr::asis_output(paste0("- **Sectores Seleccionados:** ", formatear_seleccion(params$sectores_seleccionados), "\n"))
+  } else {
+    knitr::asis_output("- **Sectores Seleccionados:** Ninguno\n")
+  }
+} else if (params$nivel_consulta == "Entidad") {
+  if (!is.null(params$sectores_seleccionados) && length(params$sectores_seleccionados) > 0) {
+    knitr::asis_output(paste0("- **Sectores Base:** ", formatear_seleccion(params$sectores_seleccionados), "\n"))
+  }
+  if (!is.null(params$entidades_seleccionadas) && length(params$entidades_seleccionadas) > 0) {
+    knitr::asis_output(paste0("- **Entidades Seleccionadas:** ", formatear_seleccion(params$entidades_seleccionadas), "\n"))
+  } else {
+    knitr::asis_output("- **Entidades Seleccionadas:** Ninguna\n")
+  }
+} else {
+  knitr::asis_output("- **Alcance:** Distrito completo\n")
+}
+```
+
+# Visualizaciones de la Dimensión
+
+## Ranking de Indicadores
+
+El siguiente gráfico muestra el desempeño comparativo de todos los indicadores dentro de la dimensión seleccionada, ordenados de mayor a menor rendimiento.
+
+```{r ranking, fig.height=5.5}
+if (!is.null(datos_ranking) && nrow(datos_ranking) > 0) {
+
+  datos_ranking <- datos_ranking %>%
+    mutate(color = sapply(Valor, get_color))
+
+  ggplot(datos_ranking, aes(x = Valor, y = Indicador, fill = color)) +
+    geom_col(width = 0.6) +
+    geom_text(aes(label = round(Valor,1)), hjust = -0.1, size = 3.5, fontface = "bold",
+              family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.02))) +
+    labs(title = "Ranking de Indicadores", x = "Valor", y = NULL) +
+    theme(
+      plot.title = element_text(size = 13),
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 9),
+      axis.title = element_text(size = 10),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 20, 5, 5))
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5, label = "No hay datos disponibles",
+             size = 6, family = fuente_base) +
+    theme_void()
+}
+```
+
+## Desempeño por Canal de Atención
+
+Comparación del indicador seleccionado a través de los diferentes canales de atención al ciudadano.
+
+```{r canal, fig.height=4.5}
+if (!is.null(datos_canal) && nrow(datos_canal) > 0) {
+  datos_canal <- datos_canal %>%
+    mutate(color = sapply(Valor, get_color))
+
+  ggplot(datos_canal, aes(x = Valor, y = Canal)) +
+    geom_col(aes(fill = color), width = 0.6) +
+    geom_text(aes(label = round(Valor,1)), hjust = -0.1, size = 3.8, fontface = "bold", family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.02))) +
+    labs(title = "Desempeño por Canal", x = "Valor", y = NULL) +
+    theme(
+      plot.title = element_text(size = 13),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      panel.grid.major.y = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 20, 5, 5))
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5, label = "No hay datos disponibles", size = 6, family = fuente_base) +
+    theme_void()
+}
+```
+
+\newpage
+
+## Evolución Temporal
+
+Tendencia del indicador seleccionado a lo largo de los periodos analizados.
+
+```{r periodo, fig.height=4.5}
+if (!is.null(datos_periodo) && nrow(datos_periodo) > 0) {
+  datos_periodo <- datos_periodo %>%
+    mutate(color = sapply(Valor, get_color))
+
+  ggplot(datos_periodo, aes(x = Valor, y = Periodo)) +
+    geom_col(aes(fill = color), width = 0.6) +
+    geom_text(aes(label = round(Valor,1)), hjust = -0.1, size = 3.3, fontface = "bold", family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.05))) +
+    labs(title = "Desempeño por Periodo", x = "Valor", y = "Periodo") +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 13, face = "bold"),
+      axis.text.x = element_text(size = 9),
+      axis.text.y = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      panel.grid.major.x = element_blank(),
+      panel.grid.minor = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 10, 5, 5))
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5, label = "No hay datos disponibles", size = 6, family = fuente_base) +
+    theme_void()
+}
+```
+
+# Interpretación de Resultados
+
+```{r interpretacion, results='asis'}
+if (params$nivel_consulta == "Distrito") {
+  knitr::asis_output(paste0(
+    "El análisis contempla todo el distrito, proporcionando una visión integral del indicador **",
+    params$indicador_seleccionado,
+    "** dentro de la dimensión **",
+    params$dimension_nombre,
+    "**.\n\n"
+  ))
+} else if (params$nivel_consulta == "Sector") {
+  knitr::asis_output(paste0(
+    "El análisis se enfoca en los sectores seleccionados, permitiendo evaluar el indicador **",
+    params$indicador_seleccionado,
+    "** con un nivel de desagregación sectorial.\n\n"
+  ))
+} else if (params$nivel_consulta == "Entidad") {
+  knitr::asis_output(paste0(
+    "El análisis se concentra en las entidades específicas seleccionadas, proporcionando un detalle granular del indicador **",
+    params$indicador_seleccionado,
+    "**.\n\n"
+  ))
+}
+
+if (!is.null(datos_ranking) && nrow(datos_ranking) > 0) {
+  mejor_indicador <- datos_ranking$Indicador[1]
+  peor_indicador <- datos_ranking$Indicador[nrow(datos_ranking)]
+  knitr::asis_output(paste0("- **Indicador con mejor desempeño:** ", as.character(mejor_indicador), "\n"))
+  knitr::asis_output(paste0("- **Indicador con menor desempeño:** ", as.character(peor_indicador), "\n\n"))
+}
+```
+
+Los gráficos presentados permiten:
+
+1. **Comparar canales** para optimizar recursos y mejorar la experiencia ciudadana
+2. **Detectar tendencias temporales** que requieran acciones correctivas o de fortalecimiento
+3. **Priorizar acciones de mejora** basadas en datos objetivos
+
+Para un análisis más detallado o para explorar otras dimensiones, se recomienda consultar el dashboard interactivo.

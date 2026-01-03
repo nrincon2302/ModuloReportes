@@ -1,0 +1,48 @@
+name: CI - Modulo Reportes
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  docker-ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: |
+          docker build -t modulo-reportes:ci .
+
+      - name: Run container
+        run: |
+          docker run -d \
+            --name modulo-reportes-test \
+            -p 3838:3838 \
+            --env-file .env.example \
+            modulo-reportes:ci
+
+      - name: Wait for Shiny to be ready
+        run: |
+          for i in {1..30}; do
+            if curl -sf http://localhost:3838 > /dev/null; then
+              echo "Shiny is up 🚀"
+              exit 0
+            fi
+            echo "Waiting for Shiny..."
+            sleep 2
+          done
+          echo "Shiny did not start in time ❌"
+          docker logs modulo-reportes-test
+          exit 1
+
+      - name: Stop container
+        if: always()
+        run: |
+          docker stop modulo-reportes-test
+          docker rm modulo-reportes-test

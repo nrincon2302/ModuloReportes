@@ -1,0 +1,552 @@
+---
+title: "Reporte de Seguimiento y Evaluación del Servicio"
+author: "Generado por el Sistema de Seguimiento"
+date: '`r paste(format(Sys.time(), "%d"), "de", c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[as.numeric(format(Sys.time(), "%m"))], "de", format(Sys.time(), "%Y"))`'
+output:
+  pdf_document:
+    latex_engine: xelatex
+    keep_tex: false
+geometry: "left=2.5cm, right=2.5cm, top=3.5cm, bottom=2.5cm"
+header-includes: |
+  \usepackage{fancyhdr}
+  \usepackage{graphicx}
+  \usepackage{float}
+  \usepackage{fontspec}
+  \pagestyle{fancy}
+  \fancyhf{}
+  \fancyhead[L]{\includegraphics[height=0.8cm]{logo.png}}
+  \fancyhead[R]{Reporte de Seguimiento y Evaluación}
+  \fancyfoot[C]{\thepage}
+  \renewcommand{\headrulewidth}{0.5pt}
+  \setlength{\headheight}{30pt}
+  \setmainfont{MuseoSansCond-500}[Path=fonts/,Extension=.otf]
+  \setsansfont{MuseoSansCond-500}[Path=fonts/,Extension=.otf]
+params:
+  datos_filtrados: NULL
+  nivel_consulta: "No especificado"
+  sectores_seleccionados: NULL
+  entidades_seleccionadas: NULL
+  canal_seleccionado: NULL
+  subcanales_seleccionados: NULL
+  detalle_canal: FALSE
+  titulo_ranking: "Ranking de Entidades"
+  indice_global: NULL
+  datos_pilar: NULL
+  datos_periodo: NULL
+  datos_canal: NULL
+  datos_entidad: NULL
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 6.5,
+  fig.height = 4.5,
+  fig.align = 'center'
+)
+
+# Cargar librerías necesarias
+library(dplyr)
+library(ggplot2)
+library(ggforce)
+library(scales)
+library(tidyr)
+library(showtext)
+
+fuente_base <- "MuseoSansCond-500"
+
+if (file.exists("fonts/MuseoSansCond-500.otf")) {
+  sysfonts::font_add(family = fuente_base, regular = "fonts/MuseoSansCond-500.otf")
+  showtext_auto()
+}
+
+theme_set(
+  theme_minimal(base_family = fuente_base) +
+    theme(
+      plot.title = element_text(hjust = 0.5, face = "bold"),
+      axis.title = element_text(face = "bold"),
+      panel.grid.minor = element_blank()
+    )
+)
+
+# Función auxiliar para limpiar columnas numéricas y evitar etiquetas NA
+limpiar_indices <- function(df, columna = "Indice") {
+  if (is.null(df) || nrow(df) == 0 || !(columna %in% names(df))) return(NULL)
+  df %>%
+    mutate(!!sym(columna) := suppressWarnings(as.numeric(.data[[columna]]))) %>%
+    filter(!is.na(.data[[columna]]))
+}
+
+# Validar que los datos existen
+tiene_datos <- (!is.null(params$datos_filtrados) &&
+                is.data.frame(params$datos_filtrados) &&
+                nrow(params$datos_filtrados) > 0) ||
+               !all(is.null(params$indice_global),
+                    is.null(params$datos_pilar),
+                    is.null(params$datos_periodo),
+                    is.null(params$datos_canal),
+                    is.null(params$datos_entidad))
+
+# Usar los datos precalculados cuando están disponibles para reflejar con precisión
+# las visualizaciones del dashboard. Si faltan, caemos al cálculo desde los datos
+# filtrados como respaldo.
+indice_global <- params$indice_global
+datos_pilar <- params$datos_pilar
+datos_periodo <- params$datos_periodo
+datos_canal <- params$datos_canal
+datos_entidad <- params$datos_entidad
+
+if (tiene_datos) {
+  if (is.null(indice_global) && "Indice" %in% names(params$datos_filtrados)) {
+    indice_global <- round(mean(params$datos_filtrados$Indice, na.rm = TRUE), 1)
+  }
+
+  if (is.null(datos_pilar) && all(c("Pilar", "Indice") %in% names(params$datos_filtrados))) {
+    datos_pilar <- params$datos_filtrados %>%
+      group_by(Pilar) %>%
+      summarise(Indice = round(mean(Indice, na.rm = TRUE), 1), .groups = 'drop') %>%
+      limpiar_indices() %>%
+      arrange(desc(Indice)) %>%
+      mutate(Pilar = factor(Pilar, levels = Pilar))
+  }
+
+  if (is.null(datos_periodo) && all(c("Periodo", "Indice") %in% names(params$datos_filtrados))) {
+    orden_periodos <- params$datos_filtrados %>% pull(Periodo) %>% unique()
+
+    datos_periodo <- params$datos_filtrados %>%
+      group_by(Periodo) %>%
+      summarise(Indice = round(mean(Indice, na.rm = TRUE), 1), .groups = 'drop') %>%
+      limpiar_indices() %>%
+      mutate(Periodo = factor(Periodo, levels = orden_periodos)) %>%
+      arrange(Periodo)
+  }
+
+  if (is.null(datos_canal) && isTRUE(params$detalle_canal)) {
+    if ("Subcanal" %in% names(params$datos_filtrados) && !is.null(params$canal_seleccionado)) {
+      datos_canal <- params$datos_filtrados %>%
+        group_by(Subcanal) %>%
+        summarise(Indice = round(mean(Indice, na.rm = TRUE), 1), .groups = 'drop') %>%
+        limpiar_indices() %>%
+        arrange(desc(Indice)) %>%
+        mutate(Subcanal = factor(Subcanal, levels = Subcanal))
+    } else if ("Canal" %in% names(params$datos_filtrados)) {
+      datos_canal <- params$datos_filtrados %>%
+        group_by(Canal) %>%
+        summarise(Indice = round(mean(Indice, na.rm = TRUE), 1), .groups = 'drop') %>%
+        limpiar_indices() %>%
+        arrange(desc(Indice)) %>%
+        mutate(Canal = factor(Canal, levels = Canal))
+    }
+  }
+
+  if (is.null(datos_entidad) && "Nombre_Entidad" %in% names(params$datos_filtrados)) {
+    datos_entidad <- params$datos_filtrados %>%
+      group_by(Nombre_Entidad) %>%
+      summarise(Indice = round(mean(Indice, na.rm = TRUE), 1), .groups = 'drop') %>%
+      limpiar_indices() %>%
+      arrange(desc(Indice)) %>%
+      mutate(Nombre_Entidad = factor(Nombre_Entidad, levels = Nombre_Entidad))
+  }
+}
+
+if (is.null(indice_global)) indice_global <- NA
+datos_pilar <- limpiar_indices(datos_pilar)
+datos_periodo <- limpiar_indices(datos_periodo)
+
+if (!is.null(datos_periodo) && nrow(datos_periodo) > 0) {
+  datos_periodo <- datos_periodo %>%
+    mutate(Periodo = as.character(Periodo)) %>%
+    filter(!is.na(Periodo), Periodo != "", Periodo != "NA")
+
+  niveles_periodo <- datos_periodo %>% pull(Periodo) %>% as.character() %>% unique()
+  datos_periodo <- datos_periodo %>%
+    mutate(Periodo = factor(as.character(Periodo), levels = niveles_periodo)) %>%
+    arrange(Periodo)
+}
+datos_canal <- limpiar_indices(datos_canal)
+datos_entidad <- limpiar_indices(datos_entidad)
+
+if (!is.null(datos_pilar) && nrow(datos_pilar) > 0) {
+  datos_pilar <- datos_pilar %>%
+    arrange(desc(Indice)) %>%
+    mutate(Pilar = factor(Pilar, levels = unique(Pilar)))
+}
+
+if (!is.null(datos_canal) && nrow(datos_canal) > 0) {
+  if ("Subcanal" %in% names(datos_canal)) {
+    datos_canal <- datos_canal %>%
+      mutate(Subcanal = as.character(Subcanal)) %>%
+      filter(!is.na(Subcanal), Subcanal != "", Subcanal != "NA") %>%
+      arrange(desc(Indice)) %>%
+      mutate(Subcanal = factor(Subcanal, levels = unique(Subcanal)))
+  } else {
+    datos_canal <- datos_canal %>%
+      mutate(Canal = as.character(Canal)) %>%
+      filter(!is.na(Canal), Canal != "", Canal != "NA") %>%
+      arrange(desc(Indice)) %>%
+      mutate(Canal = factor(Canal, levels = unique(Canal)))
+  }
+}
+
+if (!is.null(datos_entidad) && nrow(datos_entidad) > 0) {
+  datos_entidad <- datos_entidad %>%
+    arrange(desc(Indice)) %>%
+    mutate(Nombre_Entidad = factor(Nombre_Entidad, levels = unique(Nombre_Entidad)))
+}
+
+# Función para determinar color según valor
+get_color <- function(value) {
+  if (is.na(value)) return("#CCCCCC")
+  if (value < 90) return("#E3272A")   # Crítico: Rojo
+  if (value < 97) return("#F9D248")   # Aceptable: Amarillo
+  return("#8CBE23")                    # Óptimo: Verde
+}
+
+# Función para determinar nivel textual
+get_nivel <- function(value) {
+  if (is.na(value)) return("N/A")
+  if (value < 90) return("Crítico")
+  if (value < 97) return("Aceptable")
+  return("Óptimo")
+}
+
+# Función para formatear lista de selecciones
+formatear_seleccion <- function(items) {
+  if (is.null(items) || length(items) == 0) {
+    return("Ninguno")
+  }
+  if (length(items) > 5) {
+    return(paste0(paste(items[1:5], collapse = ", "), " (y ", length(items) - 5, " más)"))
+  }
+  return(paste(items, collapse = ", "))
+}
+
+Sys.setlocale("LC_TIME", "es_ES.UTF-8")
+Sys.setlocale("LC_TIME", "Spanish")
+```
+
+\begin{titlepage}
+\centering
+\vspace*{2cm}
+\includegraphics[height=4cm]{logo.png}
+
+\vspace{1cm}
+{\fontsize{26}{30}\selectfont\textbf{Reporte de Seguimiento y Evaluación del Servicio}\par}
+\vspace{0.5cm}
+{\large Generado por el Sistema de Seguimiento\par}
+\vfill
+{\large `r paste(format(Sys.time(), "%d"), "de", c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")[as.numeric(format(Sys.time(), "%m"))], "de", format(Sys.time(), "%Y"))`\par}
+\end{titlepage}
+
+\newpage
+
+# Resumen de la Consulta
+
+Este reporte ha sido generado con los siguientes filtros aplicados en el dashboard.
+
+- **Nivel de Consulta:** `r params$nivel_consulta`
+
+```{r filtros_aplicados, results='asis'}
+if (params$nivel_consulta == "Sector") {
+  if (!is.null(params$sectores_seleccionados) && length(params$sectores_seleccionados) > 0) {
+    knitr::asis_output(paste0("- **Sectores Seleccionados:** ", formatear_seleccion(params$sectores_seleccionados), "\n"))
+  } else {
+    knitr::asis_output("- **Sectores Seleccionados:** Ninguno\n")
+  }
+} else if (params$nivel_consulta == "Entidad") {
+  if (!is.null(params$sectores_seleccionados) && length(params$sectores_seleccionados) > 0) {
+    knitr::asis_output(paste0("- **Sectores Base:** ", formatear_seleccion(params$sectores_seleccionados), "\n"))
+  }
+  if (!is.null(params$entidades_seleccionadas) && length(params$entidades_seleccionadas) > 0) {
+    knitr::asis_output(paste0("- **Entidades Seleccionadas:** ", formatear_seleccion(params$entidades_seleccionadas), "\n"))
+  } else {
+    knitr::asis_output("- **Entidades Seleccionadas:** Ninguna\n")
+  }
+}
+
+# Información de canal
+if (isTRUE(params$detalle_canal)) {
+  if (!is.null(params$canal_seleccionado)) {
+    knitr::asis_output(paste0("- **Canal Seleccionado:** ", params$canal_seleccionado, "\n"))
+    if (!is.null(params$subcanales_seleccionados) && length(params$subcanales_seleccionados) > 0) {
+      knitr::asis_output(paste0("- **Subcanales:** ", formatear_seleccion(params$subcanales_seleccionados), "\n"))
+    }
+  }
+}
+```
+
+- **Fecha de Generación:** `r format(Sys.Date(), '%d de %B de %Y')`
+
+\newpage
+
+# Visualizaciones del Índice
+
+## Índice Global
+
+El Índice Global de Satisfacción/Calidad consolida todas las métricas en un único indicador. Este valor representa el rendimiento general de la selección actual. 
+
+```{r resumen_global, results='asis'}
+if (tiene_datos && !is.na(indice_global)) {
+  knitr::asis_output(paste0(
+    "Para el periodo y los filtros aplicados:\n\n",
+    "- **Índice Global:** ", indice_global, "%\n",
+    "- **Clasificación:** ", get_nivel(indice_global), "\n\n"
+  ))
+} else {
+  knitr::asis_output("**No hay datos disponibles para el análisis.**\n\n")
+}
+```
+
+```{r gauge, fig.height=3.5, fig.width=5}
+if (tiene_datos && !is.na(indice_global)) {
+
+  indice_plot <- pmin(pmax(as.numeric(indice_global), 0), 100)
+
+  gauge_bands <- data.frame(
+    start = c(0, 90, 97),
+    end = c(90, 97, 100),
+    color = c("#E3272A", "#F9D248", "#8CBE23"),
+    label = c("Crítico", "Aceptable", "Óptimo")
+  ) %>%
+    mutate(
+      start_rad = rescale(start, to = c(-pi/2, pi/2), from = c(0, 100)),
+      end_rad = rescale(end, to = c(-pi/2, pi/2), from = c(0, 100))
+    )
+
+  needle_rad <- rescale(indice_plot, to = c(-pi/2, pi/2), from = c(0, 100))
+
+  ggplot() +
+    geom_arc_bar(
+      data = gauge_bands,
+      aes(
+        x0 = 0, y0 = 0, r0 = 0.55, r = 1,
+        start = start_rad, end = end_rad, fill = color
+      ),
+      color = "white", size = 0.8
+    ) +
+    scale_fill_identity() +
+    geom_segment(
+      aes(x = 0, y = 0,
+          xend = 0.7 * cos(needle_rad),
+          yend = 0.7 * sin(needle_rad)),
+      color = "#333333", size = 1.2,
+      arrow = arrow(length = unit(0.2, "cm"), type = "closed")
+    ) +
+    geom_point(aes(x = 0, y = 0), size = 5, color = "#333333") +
+    geom_point(aes(x = 0, y = 0), size = 3.5, color = "white") +
+    annotate("text", x = -0.95, y = -0.05, label = "0",
+             size = 3.5, fontface = "bold", color = "#6e6e6e", family = fuente_base) +
+    annotate("text", x = 0.95, y = -0.05, label = "100",
+             size = 3.5, fontface = "bold", color = "#6e6e6e", family = fuente_base) +
+    annotate("text", x = 0, y = -0.45, label = paste0(indice_plot, "%"),
+             size = 10, fontface = "bold", color = get_color(indice_plot), family = fuente_base) +
+    annotate("text", x = 0, y = 1.1, label = "Índice Global",
+             size = 5, fontface = "bold", color = "#333333", family = fuente_base) +
+    coord_fixed(ratio = 1) +
+    xlim(-1.2, 1.2) +
+    ylim(-0.6, 1.2) +
+    theme_void() +
+    theme(plot.margin = margin(5, 5, 5, 5))
+
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5,
+             label = "No hay datos disponibles", size = 6, family = fuente_base) +
+    theme_void()
+}
+```
+
+\newpage
+
+## Desempeño por Pilar
+
+Este gráfico descompone el índice por cada uno de sus pilares constitutivos. Permite identificar rápidamente las áreas estratégicas con mayor y menor rendimiento dentro de la selección de datos actual.
+
+```{r pilares, fig.height=4}
+if (!is.null(datos_pilar) && nrow(datos_pilar) > 0) {
+  datos_pilar <- datos_pilar %>%
+    mutate(color = sapply(Indice, get_color))
+
+  ggplot(datos_pilar, aes(x = Indice, y = Pilar)) +
+    geom_col(aes(fill = color), width = 0.65) +
+    geom_text(aes(label = round(Indice,1)), hjust = -0.1, size = 3.5, fontface = "bold", family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.02))) +
+    labs(title = "Índice por Pilar", x = "Índice", y = NULL) +
+    theme(
+      plot.title = element_text(size = 13),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      panel.grid.major.y = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 20, 5, 5))
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5,
+             label = "No hay datos disponibles", size = 6) +
+    theme_void()
+}
+```
+
+\newpage
+
+## Desempeño por Periodo
+
+La evolución del índice a lo largo de los periodos seleccionados se muestra a continuación, facilitando la identificación de tendencias, estacionalidades o el impacto de eventos específicos en el rendimiento.
+
+```{r periodo, fig.height=4}
+if (!is.null(datos_periodo) && nrow(datos_periodo) > 0) {
+  datos_periodo <- datos_periodo %>%
+    mutate(color = sapply(Indice, get_color))
+
+  ggplot(datos_periodo, aes(x = Indice, y = Periodo)) +
+    geom_col(aes(fill = color), width = 0.65) +
+    geom_text(aes(label = round(Indice,1)), hjust = -0.1, size = 3.5, fontface = "bold", family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.05))) +
+    labs(title = "Índice por Periodo", x = "Índice", y = NULL) +
+    theme(
+      plot.title = element_text(size = 13),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      axis.text.x = element_text(size = 9),
+      panel.grid.major.x = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 10, 5, 5))
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5,
+             label = "No hay datos disponibles", size = 6) +
+    theme_void()
+}
+```
+
+```{r canal_titulo, results='asis', eval=!is.null(datos_canal)}
+if (!is.null(datos_canal)) {
+  if (isTRUE(params$detalle_canal) && !is.null(params$canal_seleccionado)) {
+    knitr::asis_output(paste0("\n## Desempeño por Subcanal - ", params$canal_seleccionado, "\n\n"))
+  } else {
+    knitr::asis_output("\n## Desempeño por Canal de Atención\n\n")
+  }
+}
+```
+
+```{r canal, fig.height=4, eval=!is.null(datos_canal)}
+if (!is.null(datos_canal) && nrow(datos_canal) > 0) {
+
+  # Determinar si usamos Canal o Subcanal
+  if ("Subcanal" %in% names(datos_canal)) {
+    datos_canal <- datos_canal %>% mutate(Subcanal = factor(Subcanal, levels = Subcanal))
+    y_var <- "Subcanal"
+  } else {
+    datos_canal <- datos_canal %>% mutate(Canal = factor(Canal, levels = Canal))
+    y_var <- "Canal"
+  }
+
+  datos_canal <- datos_canal %>%
+    mutate(color = sapply(Indice, get_color))
+
+  ggplot(datos_canal, aes_string(x = "Indice", y = y_var)) +
+    geom_col(aes(fill = color), width = 0.65) +
+    geom_text(aes(label = round(Indice,1)), hjust = -0.1, size = 3.5, fontface = "bold", family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.02))) +
+    labs(title = paste("Índice por", y_var), x = "Índice", y = NULL) +
+    theme(
+      plot.title = element_text(size = 13),
+      axis.text = element_text(size = 10),
+      axis.title = element_text(size = 10),
+      panel.grid.major.y = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 20, 5, 5))
+} else {
+  ggplot() +
+    annotate("text", x = 0.5, y = 0.5,
+             label = "No hay datos disponibles", size = 6) +
+    theme_void()
+}
+```
+
+```{r canal_text, results='asis', eval=!is.null(datos_canal)}
+if (!is.null(datos_canal)) {
+  if (isTRUE(params$detalle_canal) && !is.null(params$canal_seleccionado)) {
+    knitr::asis_output(paste0(
+      "Este gráfico desagrega el rendimiento por cada subcanal del canal ",
+      params$canal_seleccionado,
+      ". Es una herramienta clave para evaluar la eficiencia y la experiencia del ciudadano en cada punto de contacto específico.\n\n"
+    ))
+  } else {
+    knitr::asis_output(
+      "Este gráfico desagrega el rendimiento por cada canal de atención. Es una herramienta clave para evaluar la eficiencia y la experiencia del ciudadano en cada punto de contacto.\n\n"
+    )
+  }
+}
+```
+
+\newpage
+
+# Ranking Detallado de Entidades
+
+El siguiente ranking ordena las entidades incluidas en la selección actual de mayor a menor rendimiento. El gradiente de color resalta visualmente los resultados, permitiendo una comparación directa y rápida del desempeño entre entidades.
+
+```{r ranking, fig.height=6.5}
+if (!is.null(datos_entidad) && nrow(datos_entidad) > 0) {
+  
+  # Asignar colores basados en el valor
+  datos_entidad <- datos_entidad %>%
+    mutate(color = case_when(
+      Indice < 90 ~ "#E3272A",  # Rojo
+      Indice < 97 ~ "#F9D248",  # Amarillo
+      TRUE ~ "#8CBE23"          # Verde
+    ))
+  
+  ggplot(datos_entidad, aes(x = Indice, y = Nombre_Entidad, fill = color)) +
+    geom_col(width = 0.65) +
+    geom_text(aes(label = round(Indice,1)), hjust = -0.1, size = 3.3, fontface = "bold", family = fuente_base) +
+    scale_fill_identity() +
+    scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.02))) +
+    labs(title = params$titulo_ranking, x = "Índice", y = NULL) +
+    theme(
+      plot.title = element_text(size = 13),
+      axis.text.y = element_text(size = 9),
+      axis.text.x = element_text(size = 9),
+      axis.title = element_text(size = 10),
+      panel.grid.major.y = element_blank()
+    ) +
+    coord_cartesian(clip = "off") +
+    theme(plot.margin = margin(5, 20, 5, 5))
+} else {
+  ggplot() + 
+    annotate("text", x = 0.5, y = 0.5, 
+             label = "No hay datos disponibles", size = 6) +
+    theme_void()
+}
+```
+
+\newpage
+
+# Conclusiones
+
+Este reporte proporciona una visión integral del desempeño del servicio basado en los filtros seleccionados. Los indicadores presentados permiten:
+
+- Identificar áreas de mejora prioritarias
+- Comparar el desempeño entre diferentes entidades
+- Analizar tendencias temporales
+- Evaluar la efectividad de los diferentes canales de atención
+
+```{r conclusiones_filtros, results='asis'}
+if (params$nivel_consulta == "Sector") {
+  knitr::asis_output("El análisis se ha enfocado en los sectores seleccionados, permitiendo una visión consolidada del desempeño a nivel sectorial.\n\n")
+} else if (params$nivel_consulta == "Entidad") {
+  knitr::asis_output("El análisis se ha enfocado en las entidades específicas seleccionadas, proporcionando un detalle granular del desempeño individual.\n\n")
+} else {
+  knitr::asis_output("El análisis contempla el distrito completo, ofreciendo una visión panorámica del rendimiento general del servicio.\n\n")
+}
+```
+
+Para un análisis más detallado, se recomienda explorar las secciones específicas del dashboard interactivo.
