@@ -1,0 +1,72 @@
+name: CD - Deploy to Docker Hub, Shinyapps.io and On-prem
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push app image
+        run: |
+          APP_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/modulo-reportes:latest
+          SHA_TAG=${{ secrets.DOCKERHUB_USERNAME }}/modulo-reportes:${{ github.sha }}
+          docker build -t "$APP_IMAGE" .
+          docker tag "$APP_IMAGE" "$SHA_TAG"
+          docker push "$APP_IMAGE"
+          docker push "$SHA_TAG"
+
+      - name: Build and push nginx image (custom config)
+        run: |
+          NGINX_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/modulo-reportes-nginx:latest
+          # Build inline Dockerfile from nginx/ folder (copies nginx.conf)
+          docker build -t "$NGINX_IMAGE" -f - ./nginx <<'EOF'
+          FROM nginx:alpine
+          COPY nginx.conf /etc/nginx/nginx.conf
+          EOF
+          docker push "$NGINX_IMAGE"
+
+      - name: Deploy to shinyapps.io
+        env:
+          SHINYAPPS_ACCOUNT: ${{ secrets.SHINYAPPS_ACCOUNT }}
+          SHINYAPPS_TOKEN: ${{ secrets.SHINYAPPS_TOKEN }}
+          SHINYAPPS_SECRET: ${{ secrets.SHINYAPPS_SECRET }}
+        run: |
+          R -e "install.packages('rsconnect', repos='https://cran.rstudio.com/')"
+          R -e "rsconnect::setAccountInfo(name=Sys.getenv('SHINYAPPS_ACCOUNT'), token=Sys.getenv('SHINYAPPS_TOKEN'), secret=Sys.getenv('SHINYAPPS_SECRET'))"
+          R -e "rsconnect::deployApp(appDir='app', appName='modulo-reportes', account=Sys.getenv('SHINYAPPS_ACCOUNT'))"
+
+      # - name: Copy files to server
+      #   uses: appleboy/scp-action@v0.1.7
+      #   with:
+      #     host: ${{ secrets.ONPREM_HOST }}
+      #     username: ${{ secrets.ONPREM_USER }}
+      #     key: ${{ secrets.ONPREM_SSH_KEY }}
+      #     source: "."
+      #     target: ${{ secrets.ONPREM_PATH }}
+
+      # - name: Deploy on server (pull images and restart)
+      #   uses: appleboy/ssh-action@v1.0.3
+      #   with:
+      #     host: ${{ secrets.ONPREM_HOST }}
+      #     username: ${{ secrets.ONPREM_USER }}
+      #     key: ${{ secrets.ONPREM_SSH_KEY }}
+      #     script: |
+      #       cd ${{ secrets.ONPREM_PATH }}
+      #       # Login to Docker Hub on the remote host to pull private images (if needed)
+      #       echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin || true
+      #       docker compose pull || true
+      #       docker compose build || true
+      #       docker compose up -d --remove-orphans

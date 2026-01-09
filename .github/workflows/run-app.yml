@@ -1,18 +1,17 @@
-name: CI - Modulo Reportes
+name: CI - Ejecución de la app
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 jobs:
-  docker-ci:
+  run-app:
+    name: Build, run and smoke-test the Shiny app
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-
+    timeout-minutes: 20
     steps:
-      - name: Checkout repo
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Build Docker image
@@ -44,5 +43,6 @@ jobs:
       - name: Stop container
         if: always()
         run: |
-          docker stop modulo-reportes-test
-          docker rm modulo-reportes-test
+          docker stop modulo-reportes-test || true
+          docker rm modulo-reportes-test || true
+          docker image rm modulo-reportes:ci || true
