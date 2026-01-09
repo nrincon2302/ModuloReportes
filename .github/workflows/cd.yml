@@ -43,6 +43,11 @@ jobs:
         with:
           r-version: '4.4.1'
 
+      - name: Install system dependencies for R packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends pkg-config libcurl4-openssl-dev libssl-dev libxml2-dev libglpk-dev
+
       - name: Deploy to shinyapps.io
         env:
           SHINYAPPS_ACCOUNT: ${{ secrets.SHINYAPPS_ACCOUNT }}
