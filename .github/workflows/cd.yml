@@ -37,6 +37,11 @@ jobs:
           COPY nginx.conf /etc/nginx/nginx.conf
           EOF
           docker push "$NGINX_IMAGE"
+          
+      - name: Setup R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.4.1'
 
       - name: Deploy to shinyapps.io
         env:

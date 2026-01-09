@@ -21,7 +21,7 @@ jobs:
           r-version: '4.4.1'
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-dev libssl-dev libcurl4-openssl-dev
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-dev libssl-dev libcurl4-openssl-dev libglpk-dev
 
       - name: Restore renv and install testthat
         run: |
