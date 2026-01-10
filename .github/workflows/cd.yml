@@ -86,7 +86,7 @@ jobs:
           # Create a .Renviron file inside the app so shinyapps.io picks up env vars during deploy
           R -e "vars <- c('FASTAPI_PASSWORD','FASTAPI_URL','FASTAPI_USERNAME','ODK_EMAIL','ODK_PASSWORD','ODK_PROJECT_ID','ODK_URL'); con <- file('app/.Renviron','w'); writeLines(sapply(vars, function(v) paste0(v,'=',Sys.getenv(v))), con); close(con)"
           R -e "rsconnect::setAccountInfo(name=Sys.getenv('SHINYAPPS_ACCOUNT'), token=Sys.getenv('SHINYAPPS_TOKEN'), secret=Sys.getenv('SHINYAPPS_SECRET'))"
-          R -e "rsconnect::deployApp(appDir='app', appName='Dashboard-Shiny', account=Sys.getenv('SHINYAPPS_ACCOUNT'))"
+          R -e "rsconnect::deployApp(appDir='app', appName='Dashboard-Shiny', account=Sys.getenv('SHINYAPPS_ACCOUNT'), forceUpdate = TRUE, launch.browser = FALSE)"
 
       # - name: Copy files to server
       #   uses: appleboy/scp-action@v0.1.7
