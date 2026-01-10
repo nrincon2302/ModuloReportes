@@ -56,7 +56,7 @@ jobs:
         run: |
           R -e "install.packages('rsconnect', repos='https://cran.rstudio.com/')"
           R -e "rsconnect::setAccountInfo(name=Sys.getenv('SHINYAPPS_ACCOUNT'), token=Sys.getenv('SHINYAPPS_TOKEN'), secret=Sys.getenv('SHINYAPPS_SECRET'))"
-          R -e "rsconnect::deployApp(appDir='app', appName='modulo-reportes', account=Sys.getenv('SHINYAPPS_ACCOUNT'))"
+          R -e "rsconnect::deployApp(appDir='app', appName='Dashboard-Shiny', account=Sys.getenv('SHINYAPPS_ACCOUNT'))"
 
       # - name: Copy files to server
       #   uses: appleboy/scp-action@v0.1.7
