@@ -203,7 +203,7 @@ descarga_matrices_fastapi <- function() {
 # ============================================
 
 # Asumimos la historia completa de periodos formato "YYYY-MM"
-years <- 2023:as.numeric(format(Sys.Date(), "%Y"))
+years <- 2025:as.numeric(format(Sys.Date(), "%Y"))
 months <- 1:12
 periodos <<- expand.grid(
   Año = years,

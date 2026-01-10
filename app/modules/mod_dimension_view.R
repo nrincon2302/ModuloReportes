@@ -10,7 +10,7 @@ dimension_preview_ui <- function(id) {
   
   # Estáticos
   all_sectores <- if(exists("df_sectores")) sort(df_sectores$Sector) else character(0)
-  anios_fijos <- if(exists("periodos")) as.character(sort(unique(periodos$Año))) else c("2024", "2025")
+  anios_fijos <- if(exists("periodos")) as.character(sort(unique(periodos$Año))) else c("2025", "2026")
   meses_fijos <- sprintf("%02d", 1:12)
   names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
   
@@ -248,7 +248,7 @@ dimension_view_ui <- function(id) {
   
   all_sectores <- if(exists("df_sectores")) sort(df_sectores$Sector) else character(0)
   all_canales <- if (exists("df_canales_lista")) df_canales_lista$Canal else obtener_canales()
-  anios_fijos <- if(exists("periodos")) as.character(sort(unique(periodos$Año))) else c("2024", "2025")
+  anios_fijos <- if(exists("periodos")) as.character(sort(unique(periodos$Año))) else c("2025", "2026")
   meses_fijos <- sprintf("%02d", 1:12)
   names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
   

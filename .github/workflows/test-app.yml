@@ -20,6 +20,18 @@ jobs:
         with:
           r-version: '4.4.1'
 
+      - name: Cache renv and R packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/renv
+            ~/.cache/R
+            renv/library
+            renv/staging
+          key: ${{ runner.os }}-renv-${{ hashFiles('renv.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-renv-
+
       - name: Install system dependencies
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-dev libssl-dev libcurl4-openssl-dev libglpk-dev
 
@@ -37,9 +49,21 @@ jobs:
           R -e "if (!requireNamespace('lintr', quietly = TRUE)) install.packages('lintr', repos='https://cran.rstudio.com/')"
           R -e "if (dir.exists('R')) lintr::lint_dir('R') else cat('No R/ dir for lintr.\n')"
 
-      - name: Build Docker image (verify build)
-        run: |
-          docker build -t modulo-reportes:ci .
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Build image with Buildx and cache
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          push: false
+          load: true
+          tags: modulo-reportes:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
       - name: Remove local test image
         if: always()
