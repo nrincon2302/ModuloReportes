@@ -14,19 +14,22 @@ generar_dataframes_con_filtros <- function(
   # Construir vector de periodos si se especifican años/meses
   periodos_filtrados <- NULL
   
-  if (!is.null(anios) && length(anios) > 0) {
+  # Support two modes:
+  # - legacy: anios (int vector) + meses (int vector) -> build YYYY-MM combinations
+  # - new: meses can be a character vector of periods like "YYYY-MM"; in that case use directly
+  if (!is.null(meses) && length(meses) > 0 && is.character(meses) && all(grepl("^\\d{4}-\\d{2}$", meses))) {
+    periodos_filtrados <- meses
+  } else if (!is.null(anios) && length(anios) > 0) {
     anios <- as.integer(anios)
-    
     if (!is.null(meses) && length(meses) > 0) {
       meses <- as.integer(meses)
     } else {
       meses <- 1:12
     }
-    
+
     periodos_filtrados <- expand.grid(Anio = anios, Mes = meses) %>%
       mutate(Periodo = sprintf("%04d-%02d", Anio, Mes)) %>%
       pull(Periodo)
-    
   }
   
   # Log de filtros aplicados
@@ -84,8 +87,7 @@ generar_dataframes_filtrados_startup <- function() {
     periodo_key <- format(as.Date(periodo), "%Y-%m")
     resultados$historico[[periodo_key]] <- generar_dataframes_con_filtros(
       nivel = "Distrito",
-      anios = as.integer(format(as.Date(periodo), "%Y")),
-      meses = as.integer(format(as.Date(periodo), "%m"))
+      meses = format(as.Date(periodo), "%Y-%m")
     )
   }
   
@@ -168,18 +170,30 @@ actualizar_ranking_entidades <- function(anios = NULL, meses = NULL, canal = NUL
 actualizar_dataframes_historico <- function(anios = NULL, meses = NULL, canal = NULL, subcanal = NULL, nivel = "Distrito", ids_seleccionados = NULL) {
   historicos <- list()
   
-  for (anio in anios) {
-    for (mes in meses) {
-      
-      periodo_key <- sprintf("%04d-%02d", as.numeric(anio), as.numeric(mes))
+  # Support meses supplied as vector of period strings (YYYY-MM)
+  if (!is.null(meses) && length(meses) > 0 && is.character(meses) && all(grepl("^\\d{4}-\\d{2}$", meses))) {
+    for (periodo_key in meses) {
       historicos[[periodo_key]] <- generar_dataframes_con_filtros(
-        anios = anio, 
-        meses = mes, 
-        canal = canal, 
+        meses = periodo_key,
+        canal = canal,
         subcanal = subcanal,
         nivel = nivel,
         ids_seleccionados = ids_seleccionados
       )
+    }
+  } else {
+    for (anio in anios) {
+      for (mes in meses) {
+        periodo_key <- sprintf("%04d-%02d", as.numeric(anio), as.numeric(mes))
+        historicos[[periodo_key]] <- generar_dataframes_con_filtros(
+          anios = anio, 
+          meses = mes, 
+          canal = canal, 
+          subcanal = subcanal,
+          nivel = nivel,
+          ids_seleccionados = ids_seleccionados
+        )
+      }
     }
   }
   

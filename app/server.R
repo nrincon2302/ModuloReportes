@@ -135,18 +135,23 @@ server <- function(input, output, session) {
   }
   
   normalizar_periodos <- function(anios, meses) {
+    # If meses is already a vector of period strings "YYYY-MM", return it directly
+    if (!is.null(meses) && length(meses) > 0 && is.character(meses) && all(grepl("^\\d{4}-\\d{2}$", meses))) {
+      return(list(anios = NULL, meses = meses))
+    }
+
     if (is.null(anios) || length(anios) == 0) {
       return(list(anios = NULL, meses = NULL))
     }
-    
+
     if (length(anios) > 1) {
       return(list(anios = anios, meses = 1:12))
     }
-    
+
     if (is.null(meses) || length(meses) == 0) {
       return(list(anios = anios, meses = 1:12))
     }
-    
+
     list(anios = anios, meses = as.integer(meses))
   }
   
@@ -275,7 +280,10 @@ server <- function(input, output, session) {
       job_historico_running(TRUE)
       
       future_promise({
-        if (is.null(filtros$anios) || length(filtros$anios) == 0) {
+        is_period_vector <- !is.null(filtros$meses) && length(filtros$meses) > 0 && is.character(filtros$meses) && all(grepl("^\\d{4}-\\d{2}$", filtros$meses))
+
+        # If no years selected and meses is NOT a period vector, fallback to últimos 4
+        if ((is.null(filtros$anios) || length(filtros$anios) == 0) && !is_period_vector) {
           generar_historico_ultimos_periodos(
             nivel = filtros$nivel,
             ids_seleccionados = filtros$ids

@@ -10,7 +10,9 @@ dimension_preview_ui <- function(id) {
   
   # Estáticos
   all_sectores <- if(exists("df_sectores")) sort(df_sectores$Sector) else character(0)
-  anios_fijos <- if(exists("periodos")) as.character(sort(unique(periodos$Año))) else c("2025", "2026")
+  # Allowed years from 2025 to current year (keep in sync with periodos availability)
+  end_year <- as.integer(format(Sys.Date(), "%Y"))
+  anios_fijos <- as.character(seq(2025, end_year))
   meses_fijos <- sprintf("%02d", 1:12)
   names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
   
@@ -24,8 +26,7 @@ dimension_preview_ui <- function(id) {
       fluidRow(
         column(6, pickerInput(ns("filtro_anio"), "Año", choices = anios_fijos, multiple = TRUE, 
                               options = list(`actions-box`=TRUE, `none-selected-text`="Todos"))),
-        column(6, pickerInput(ns("filtro_mes"), "Mes", choices = meses_fijos, multiple = TRUE, 
-                              options = list(`actions-box`=TRUE, `none-selected-text`="Todos")))
+        column(6, uiOutput(ns("mes_selector_ui")))
       ),
       actionButton(ns("btn_actualizar_fechas"), "Filtrar por Fechas", icon = icon("sync"), 
                    class = "btn-primary btn-sm", style = "width: 100%; margin-bottom: 15px;"),
@@ -81,22 +82,29 @@ dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals
     # 1. VALIDACIÓN Y COMUNICACIÓN DE FILTROS
     # ============================================
     
-    # Validación de selección de fechas (misma lógica que indice_dashboard)
-    observe({
+    # Dynamic month selector (per-year pickers)
+    output$mes_selector_ui <- renderUI({
       req(input$filtro_anio)
-      if (length(input$filtro_anio) > 1) {
-        updatePickerInput(session, "filtro_mes", selected = sprintf("%02d", 1:12))
-      }
-    })
-    
-    observe({
-      req(input$filtro_mes)
-      if (length(input$filtro_mes) != 12 && length(input$filtro_anio) > 1) {
-        showNotification(
-          "Para seleccionar varios meses específicos, debe elegir un solo año.",
-          type = "warning", duration = 5
-        )
-        updatePickerInput(session, "filtro_anio", selected = input$filtro_anio[1])
+      años <- input$filtro_anio
+      meses_fijos <- sprintf("%02d", 1:12)
+      names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
+
+      if (length(años) == 0) return(NULL)
+      if (length(años) == 1) {
+        pickerInput(session$ns("filtro_mes"), "Mes",
+                    choices = meses_fijos,
+                    multiple = TRUE,
+                    options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"),
+                    selected = meses_fijos)
+      } else {
+        tagList(lapply(años, function(a) {
+          pickerInput(session$ns(paste0("filtro_mes_", a)), label = a,
+                      choices = meses_fijos,
+                      multiple = TRUE,
+                      options = list(`actions-box` = TRUE, `none-selected-text`="Todos"),
+                      selected = meses_fijos)
+        }))
       }
     })
     
@@ -124,12 +132,34 @@ dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals
     })
     
     filtros_evento <- eventReactive(input$btn_actualizar_fechas, {
+      años_sel <- input$filtro_anio
+      filtro_periodos <- character(0)
+      if (!is.null(años_sel) && length(años_sel) > 0) {
+        if (length(años_sel) == 1) {
+          sel <- input$filtro_mes
+          if (is.null(sel) || length(sel) == 0) sel <- sprintf("%02d", 1:12)
+          filtro_periodos <- paste0(años_sel, "-", sprintf("%02d", as.integer(sel)))
+        } else {
+          meses_comb <- unlist(lapply(años_sel, function(a) {
+            sel <- input[[paste0('filtro_mes_', a)]]
+            if (is.null(sel) || length(sel) == 0) return(character(0))
+            paste0(a, "-", sprintf("%02d", as.integer(sel)))
+          }))
+          filtro_periodos <- meses_comb
+        }
+      } else {
+        filtro_periodos <- NULL
+      }
+
       list(
         filtro_anio = input$filtro_anio,
-        filtro_mes = input$filtro_mes,
+        filtro_mes = filtro_periodos,
         filtro_nivel = input$filtro_nivel,
         sector_checks = input$sector_checks,
-        entidad_checks = input$entidad_checks
+        entidad_checks = input$entidad_checks,
+        filtro_canal_detalle = input$filtro_canal_detalle,
+        filtro_canal_selector = input$filtro_canal_selector,
+        subcanales_checks = input$subcanales_checks
       )
     }, ignoreNULL = FALSE)
     
@@ -248,7 +278,8 @@ dimension_view_ui <- function(id) {
   
   all_sectores <- if(exists("df_sectores")) sort(df_sectores$Sector) else character(0)
   all_canales <- if (exists("df_canales_lista")) df_canales_lista$Canal else obtener_canales()
-  anios_fijos <- if(exists("periodos")) as.character(sort(unique(periodos$Año))) else c("2025", "2026")
+  end_year <- as.integer(format(Sys.Date(), "%Y"))
+  anios_fijos <- as.character(seq(2025, end_year))
   meses_fijos <- sprintf("%02d", 1:12)
   names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
   
@@ -262,8 +293,7 @@ dimension_view_ui <- function(id) {
       fluidRow(
         column(6, pickerInput(ns("filtro_anio"), "Año", choices = anios_fijos, multiple = TRUE, 
                               options = list(`actions-box`=TRUE, `none-selected-text`="Todos"))),
-        column(6, pickerInput(ns("filtro_mes"), "Mes", choices = meses_fijos, multiple = TRUE, 
-                              options = list(`actions-box`=TRUE, `none-selected-text`="Todos")))
+        column(6, uiOutput(ns("mes_selector_ui")))
       ),
       actionButton(ns("btn_actualizar_fechas"), "Filtrar por Fechas", icon = icon("sync"), 
                    class = "btn-primary btn-sm", style = "width: 100%; margin-bottom: 15px;"),
@@ -376,21 +406,29 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
     # 1. VALIDACIÓN Y COMUNICACIÓN DE FILTROS
     # ============================================
     
-    observe({
+    # Dynamic month selector (per-year pickers)
+    output$mes_selector_ui <- renderUI({
       req(input$filtro_anio)
-      if (length(input$filtro_anio) > 1) {
-        updatePickerInput(session, "filtro_mes", selected = sprintf("%02d", 1:12))
-      }
-    })
-    
-    observe({
-      req(input$filtro_mes)
-      if (length(input$filtro_mes) != 12 && length(input$filtro_anio) > 1) {
-        showNotification(
-          "Para seleccionar varios meses específicos, debe elegir un solo año.",
-          type = "warning", duration = 5
-        )
-        updatePickerInput(session, "filtro_anio", selected = input$filtro_anio[1])
+      años <- input$filtro_anio
+      meses_fijos <- sprintf("%02d", 1:12)
+      names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
+
+      if (length(años) == 0) return(NULL)
+      if (length(años) == 1) {
+        pickerInput(session$ns("filtro_mes"), "Mes",
+                    choices = meses_fijos,
+                    multiple = TRUE,
+                    options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"),
+                    selected = meses_fijos)
+      } else {
+        tagList(lapply(años, function(a) {
+          pickerInput(session$ns(paste0("filtro_mes_", a)), label = a,
+                      choices = meses_fijos,
+                      multiple = TRUE,
+                      options = list(`actions-box` = TRUE, `none-selected-text`="Todos"),
+                      selected = meses_fijos)
+        }))
       }
     })
     
@@ -414,9 +452,28 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
     })
     
     filtros_evento <- eventReactive(input$btn_actualizar_fechas, {
+      años_sel <- input$filtro_anio
+      filtro_periodos <- character(0)
+      if (!is.null(años_sel) && length(años_sel) > 0) {
+        if (length(años_sel) == 1) {
+          sel <- input$filtro_mes
+          if (is.null(sel) || length(sel) == 0) sel <- sprintf("%02d", 1:12)
+          filtro_periodos <- paste0(años_sel, "-", sprintf("%02d", as.integer(sel)))
+        } else {
+          meses_comb <- unlist(lapply(años_sel, function(a) {
+            sel <- input[[paste0('filtro_mes_', a)]]
+            if (is.null(sel) || length(sel) == 0) return(character(0))
+            paste0(a, "-", sprintf("%02d", as.integer(sel)))
+          }))
+          filtro_periodos <- meses_comb
+        }
+      } else {
+        filtro_periodos <- NULL
+      }
+
       list(
         filtro_anio = input$filtro_anio,
-        filtro_mes = input$filtro_mes,
+        filtro_mes = filtro_periodos,
         filtro_nivel = input$filtro_nivel,
         sector_checks = input$sector_checks,
         entidad_checks = input$entidad_checks,

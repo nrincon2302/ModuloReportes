@@ -8,8 +8,9 @@ indice_dashboard_ui <- function(id, id_componente) {
   all_entidades <- sort(df_entidades$Entidad)
   all_canales <- obtener_canales()
   
-  # Datos para filtros de fecha
-  anios_fijos <- as.character(sort(unique(periodos$Año)))
+  # Datos para filtros de fecha (desde 2025 hasta año actual)
+  end_year <- as.integer(format(Sys.Date(), "%Y"))
+  anios_fijos <- as.character(seq(2025, end_year))
   meses_fijos <- sprintf("%02d", 1:12)
   names(meses_fijos) <- c("Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
                           "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre")
@@ -29,12 +30,9 @@ indice_dashboard_ui <- function(id, id_componente) {
                            multiple = TRUE, 
                            options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"))
         ),
-        column(6, 
-               pickerInput(ns("filtro_mes"), "Mes", 
-                           choices = meses_fijos, 
-                           multiple = TRUE, 
-                           options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"))
-        )
+         column(6,
+           uiOutput(ns("mes_selector_ui"))
+         )
       ),
       
       actionButton(ns("btn_actualizar_fechas"), "Filtrar por Fechas", 
@@ -141,32 +139,29 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
     # 0. COMUNICACIÓN CON SERVER PRINCIPAL
     # ============================================
     
-    # Validación y ajuste de selección de fechas
-    observe({
+    # Dynamic month selector: single year -> one picker; multiple years -> one picker per year
+    output$mes_selector_ui <- renderUI({
       req(input$filtro_anio)
-      
-      # Si selecciona múltiples años, marcar TODOS los meses
-      if (length(input$filtro_anio) > 1) {
-        updatePickerInput(session, "filtro_mes", 
-                          selected = sprintf("%02d", 1:12))
-      }
-    })
-    
-    observe({
-      req(input$filtro_mes)
-      
-      # Si selecciona todos los meses, permitir múltiples años
-      if (length(input$filtro_mes) == 12) {
-        # No hacer nada, permitir múltiples años
-      } else if (length(input$filtro_anio) > 1) {
-        # Si hay múltiples años pero no todos los meses, limitar a 1 año
-        showNotification(
-          "Para seleccionar varios meses específicos, debe elegir un solo año.",
-          type = "warning",
-          duration = 5
-        )
-        updatePickerInput(session, "filtro_anio", 
-                          selected = input$filtro_anio[1])
+      años <- input$filtro_anio
+      meses_fijos <- sprintf("%02d", 1:12)
+      names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio",
+                              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
+
+      if (length(años) == 0) return(NULL)
+      if (length(años) == 1) {
+        pickerInput(session$ns("filtro_mes"), "Mes",
+                    choices = meses_fijos,
+                    multiple = TRUE,
+                    options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"),
+                    selected = meses_fijos)
+      } else {
+        tagList(lapply(años, function(a) {
+          pickerInput(session$ns(paste0("filtro_mes_", a)), label = a,
+                      choices = meses_fijos,
+                      multiple = TRUE,
+                      options = list(`actions-box` = TRUE, `none-selected-text`="Todos"),
+                      selected = meses_fijos)
+        }))
       }
     })
     
@@ -197,9 +192,28 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
     
     # Evento reactivo para recuperar el snapshot de filtros solo cuando se cliquea
     filtros_evento <- eventReactive(input$btn_actualizar_fechas, {
+      años_sel <- input$filtro_anio
+      filtro_periodos <- character(0)
+      if (!is.null(años_sel) && length(años_sel) > 0) {
+        if (length(años_sel) == 1) {
+          sel <- input$filtro_mes
+          if (is.null(sel) || length(sel) == 0) sel <- sprintf("%02d", 1:12)
+          filtro_periodos <- paste0(años_sel, "-", sprintf("%02d", as.integer(sel)))
+        } else {
+          meses_comb <- unlist(lapply(años_sel, function(a) {
+            sel <- input[[paste0('filtro_mes_', a)]]
+            if (is.null(sel) || length(sel) == 0) return(character(0))
+            paste0(a, "-", sprintf("%02d", as.integer(sel)))
+          }))
+          filtro_periodos <- meses_comb
+        }
+      } else {
+        filtro_periodos <- NULL
+      }
+
       list(
         filtro_anio = input$filtro_anio,
-        filtro_mes = input$filtro_mes,
+        filtro_mes = filtro_periodos,
         filtro_nivel = input$filtro_nivel,
         sector_checks = input$sector_checks,
         entidad_checks = input$entidad_checks,
@@ -396,8 +410,16 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
       id_comp <- id_componente_reactive()
       pilares_data <- obtener_indices_pilares(datos$general, id_comp)
       
-      if (is.null(pilares_data) || nrow(pilares_data) == 0) {
+      if (is.null(pilares_data)) {
         return(NULL)
+      }
+
+      # If pillars exist but after filtering there are no rows, show a friendly message
+      if (nrow(pilares_data) == 0) {
+        return(
+          highchart() %>%
+            hc_title(text = 'Sin datos disponibles')
+        )
       }
       
       hchart(pilares_data, "bar", hcaes(x = Pilar, y = round(Valor,1), color = Valor)) %>%
@@ -416,7 +438,7 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
       id_comp <- id_componente_reactive()
       pilares_data <- tryCatch(obtener_indices_pilares(datos$general, id_comp), error = function(e) NULL)
       
-      if (is.null(pilares_data) || nrow(pilares_data) == 0) {
+      if (is.null(pilares_data)) {
         # Ensure gauge is centered when pillar isn't present
         session$sendCustomMessage("addClass", list(id = session$ns("box_plot_gauge_global"), class = "center-when-alone"))
         return(NULL)
