@@ -42,7 +42,7 @@ jobs:
 
       - name: Run R unit tests (if present)
         run: |
-          R -e "if (dir.exists('tests')) { cat('Running tests in tests/\n'); testthat::test_dir('tests') } else if (dir.exists('app/tests')) { cat('Running tests in app/tests/\n'); testthat::test_dir('app/tests') } else { cat('No tests found, skipping.\n') }"
+          R -e "if (dir.exists('tests')) { cat('Running tests in tests/\n'); testthat::test_dir('tests/testthat') } else if (dir.exists('app/tests')) { cat('Running tests in app/tests/\n'); testthat::test_dir('app/tests/testthat') } else { cat('No tests found, skipping.\n') }"
 
       - name: Lint R (optional)
         run: |
