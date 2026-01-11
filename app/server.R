@@ -18,6 +18,7 @@ source("modules/mod_acciones_mejora.R")
 source("modules/mod_download.R")
 
 # Cargar utilidades y lógica de negocio
+source("utils/odk_helpers.R")
 source("utils/report_utils.R")
 source("utils/generar_datos_reales.R")
 source("utils/safe_data_processing.R")
