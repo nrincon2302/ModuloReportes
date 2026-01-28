@@ -320,7 +320,8 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
                            mod2_mod2_2_mod2_2_1_gp12_p14 + mod2_mod2_2_mod2_2_1_gp12_p15 +
                            mod2_mod2_2_mod2_2_1_gp12_p16 + mod2_mod2_2_mod2_2_2_p17 +
                            mod2_mod2_2_mod2_2_2_p18 + mod2_mod2_2_mod2_2_2_p19 +
-                           mod2_mod2_2_mod2_2_2_p20 + mod2_mod2_2_mod2_2_2_p21)/(n()*11)*100),
+                           mod2_mod2_2_mod2_2_2_p20 + mod2_mod2_2_mod2_2_2_p21 + 
+                           mod2_mod2_2_mod2_2_2_p22)/(n()*11)*100),
       c1_p3_d7_16 = (sum(mod2_mod2_3_p23 + mod2_mod2_3_p24 + mod2_mod2_3_p25)/(n()*3)*100)
     ) %>% ungroup() %>% 
     mutate(
