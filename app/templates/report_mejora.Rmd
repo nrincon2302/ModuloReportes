@@ -30,6 +30,7 @@ params:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(dplyr)
+library(showtext)
 
 fuente_base <- "MuseoSansCond-500"
 
@@ -46,6 +47,23 @@ theme_set(
       panel.grid.minor = element_blank()
     )
 )
+
+# Función para escapar caracteres especiales de LaTeX
+escape_latex <- function(text) {
+  if (is.na(text)) return("")
+  text <- as.character(text)
+  text <- gsub("\\\\", "\\\\textbackslash", text)
+  text <- gsub("%", "\\\\%", text)
+  text <- gsub("&", "\\\\&", text)
+  text <- gsub("_", "\\\\_", text)
+  text <- gsub("\\$", "\\\\\\$", text)
+  text <- gsub("\\{", "\\\\{", text)
+  text <- gsub("\\}", "\\\\}", text)
+  text <- gsub("#", "\\\\#", text)
+  text <- gsub("\\^", "\\\\textasciicircum", text)
+  text <- gsub("~", "\\\\textasciitilde", text)
+  text
+}
 
 # Validar datos
 tiene_datos <- !is.null(params$datos_acciones) && 
@@ -75,9 +93,9 @@ tiene_datos <- !is.null(params$datos_acciones) &&
 
 ```{r stats, results='asis'}
 if (tiene_datos) {
-  knitr::asis_output(paste0("\n- **Total de acciones:** ", nrow(params$datos_acciones), "\n"))
+  cat(paste0("\n- **Total de acciones:** ", nrow(params$datos_acciones), "\n"))
 } else {
-  knitr::asis_output("\nNo hay datos disponibles.\n\n")
+  cat("\nNo hay datos disponibles.\n\n")
 }
 ```
 
@@ -88,17 +106,17 @@ if (tiene_datos) {
   for (i in 1:nrow(params$datos_acciones)) {
     fila <- params$datos_acciones[i, ]
     
-    knitr::asis_output(paste0("\n## Indicador: ", as.character(fila$Indicador), " \n"))
-    knitr::asis_output(paste0("CRITERIO:", as.character(fila$Criterios), "\n\n"))
-    knitr::asis_output("**Acciones Sugeridas:**\n\n")
-    knitr::asis_output(paste0(as.character(fila$`Acciones Sugeridas`), "\n\n"))
+    cat(paste0("\n## Indicador: ", escape_latex(fila$Indicador), " \n"))
+    cat(paste0("CRITERIO:", escape_latex(fila$Criterios), "\n\n"))
+    cat("**Acciones Sugeridas:**\n\n")
+    cat(paste0(escape_latex(fila$`Acciones Sugeridas`), "\n\n"))
     
     if (!is.na(fila$`Herramientas de Apoyo`) && fila$`Herramientas de Apoyo` != "") {
-      knitr::asis_output("**Herramientas de Apoyo:**\n\n")
-      knitr::asis_output(paste0(as.character(fila$`Herramientas de Apoyo`), "\n\n"))
+      cat("**Herramientas de Apoyo:**\n\n")
+      cat(paste0(escape_latex(fila$`Herramientas de Apoyo`), "\n\n"))
     }
     
-    knitr::asis_output("\\hrulefill\n\n")
+    cat("\\hrulefill\n\n")
   }
 }
 ```
