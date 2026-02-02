@@ -36,16 +36,16 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Build and push nginx image with cache
-        uses: docker/build-push-action@v4
-        with:
-          context: ./nginx
-          file: ./nginx/Dockerfile
-          push: true
-          tags: |
-            ${{ secrets.DOCKERHUB_USERNAME }}/modulo-reportes-nginx:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # - name: Build and push nginx image with cache
+      #   uses: docker/build-push-action@v4
+      #   with:
+      #     context: ./nginx
+      #     file: ./nginx/Dockerfile
+      #     push: true
+      #     tags: |
+      #       ${{ secrets.DOCKERHUB_USERNAME }}/modulo-reportes-nginx:latest
+      #     cache-from: type=gha
+      #     cache-to: type=gha,mode=max
           
       - name: Setup R
         uses: r-lib/actions/setup-r@v2

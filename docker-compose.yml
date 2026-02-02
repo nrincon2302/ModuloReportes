@@ -15,6 +15,7 @@ services:
   shiny:
     build: .
     image: modulo-reportes:latest
+    #image: ${DOCKERHUB_USERNAME}/modulo-reportes:latest
     restart: unless-stopped
     env_file:
       - .env

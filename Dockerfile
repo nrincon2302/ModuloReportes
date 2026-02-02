@@ -5,12 +5,26 @@ FROM rocker/shiny:4.4.1
 # ===============================
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    wget \
+    perl \
+    ghostscript \
     libcurl4-openssl-dev \
     libssl-dev \
     libxml2-dev \
     libglpk-dev \
+    libfontconfig1 \
+    libfreetype6 \
     ca-certificates \
  && rm -rf /var/lib/apt/lists/*
+
+ RUN apt-get update && apt-get install -y \
+    texlive-latex-base \
+    texlive-latex-recommended \
+    texlive-latex-extra \
+    texlive-fonts-recommended \
+    texlive-xetex \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # ===============================
 # 2. renv
