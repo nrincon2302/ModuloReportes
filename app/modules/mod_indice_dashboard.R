@@ -718,7 +718,7 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
               datos_entidad <- datos_entidad %>% filter(Id_Entidad %in% entidades_ids)
             } else if (nivel == "Entidad" && !is.null(entidades_sel) && length(entidades_sel) > 0) {
               # entidades_sel contiene nombres de entidades
-              datos_entidad <- datos_entidad %>% filter(Entidad %in% entidades_sel)
+              datos_entidad <- datos_entidad %>% filter(Nombre_Entidad %in% entidades_sel)
             }
             if (nrow(datos_entidad) == 0) datos_entidad <- NULL
           }

@@ -84,7 +84,7 @@ get_odk_submissions <- function(fid, project_id = pid) {
         "Error al obtener datos del formulario %s. Status: %s",
         fid, httr::status_code(response)
       ))
-      return(data.frame())
+      return(generar_df_vacio(fid))
     }
     
     # Parsear JSON con flatten para expandir estructuras anidadas
