@@ -162,38 +162,73 @@ cat("✓ Dataframes base cargados correctamente.\n")
 
 descarga_matrices_fastapi <- function() {
   suppressWarnings({
+    
+    # --- HABILIDADES ---
+    .log_fastapi("info", "Descargando /habilidades...")
     df_habilidades_raw <- obtener_habilidades()
     
     if (is.null(df_habilidades_raw) || nrow(df_habilidades_raw) == 0) {
+      .log_fastapi("warn", "df_habilidades vacío — se usará dataframe vacío.")
       df_habilidades <<- generar_df_vacio("habilidades")
     } else {
-      df_habilidades <<- df_habilidades_raw %>%
-        mutate(
-          periodo = sprintf("%04d-%02d", anio, mes),
-          Canal = NA,
-          Subcanal = NA
-        ) %>% 
-        select(-id) %>%
-        left_join(df_entidades 
-                  %>% select(Id_Sector, Id_Entidad) 
-                  %>% rename(id_entidad = Id_Entidad),
-                  by = "id_entidad")
+      # Validar columnas mínimas esperadas
+      cols_esperadas <- c("id_entidad", "pct_habilidades_tecnicas",
+                          "pct_habilidades_socioemocionales",
+                          "num_capacitados_tecnicas",
+                          "num_capacitados_socioemocionales", "anio", "mes")
+      cols_faltantes <- setdiff(cols_esperadas, names(df_habilidades_raw))
+      
+      if (length(cols_faltantes) > 0) {
+        .log_fastapi("error", paste(
+          "df_habilidades recibido pero faltan columnas:", 
+          paste(cols_faltantes, collapse = ", "),
+          "| Columnas recibidas:", paste(names(df_habilidades_raw), collapse = ", ")
+        ))
+        df_habilidades <<- generar_df_vacio("habilidades")
+      } else {
+        df_habilidades <<- df_habilidades_raw %>%
+          mutate(
+            periodo  = sprintf("%04d-%02d", anio, mes),
+            Canal    = NA,
+            Subcanal = NA
+          ) %>%
+          select(-id) %>%
+          left_join(
+            df_entidades %>% select(Id_Sector, Id_Entidad) %>% rename(id_entidad = Id_Entidad),
+            by = "id_entidad"
+          )
+        .log_fastapi("info", paste("df_habilidades cargado:", nrow(df_habilidades), "filas"))
+      }
     }
     
+    # --- PQRDS ---
+    .log_fastapi("info", "Descargando /pqrds...")
     df_pqrds_raw <- obtener_pqrds()
     
     if (is.null(df_pqrds_raw) || nrow(df_pqrds_raw) == 0) {
+      .log_fastapi("warn", "df_pqrds vacío — se usará dataframe vacío.")
       df_pqrds <<- generar_df_vacio("universe")
     } else {
-      df_pqrds <<- df_pqrds_raw %>%
-        mutate(
-          Canal = NA,
-          Subcanal = NA
-        ) %>% 
-        select(-id)
+      cols_esperadas_pqrds <- c("entidad", "fecha_ingreso", "label",
+                                "tipo_gestion", "dependencia")
+      cols_faltantes_pqrds <- setdiff(cols_esperadas_pqrds, names(df_pqrds_raw))
+      
+      if (length(cols_faltantes_pqrds) > 0) {
+        .log_fastapi("error", paste(
+          "df_pqrds recibido pero faltan columnas:",
+          paste(cols_faltantes_pqrds, collapse = ", "),
+          "| Columnas recibidas:", paste(names(df_pqrds_raw), collapse = ", ")
+        ))
+        df_pqrds <<- generar_df_vacio("universe")
+      } else {
+        df_pqrds <<- df_pqrds_raw %>%
+          mutate(Canal = NA, Subcanal = NA) %>%
+          select(-id)
+        .log_fastapi("info", paste("df_pqrds cargado:", nrow(df_pqrds), "filas"))
+      }
     }
     
-    cat("✓ Matrices de FastAPI descargadas.\n")
+    cat("✓ Matrices de FastAPI procesadas.\n")
   })
 }
 
