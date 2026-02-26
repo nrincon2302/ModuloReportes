@@ -514,4 +514,9 @@ cols_universe <- c("id",
                    "fecha_ingreso",
                    "tipo_gestion",
                    "dependencia",
-                   "periodo")
+                   "fecha_radicado_salida",
+                   "fecha_vencimiento",
+                   "dias_gestion",
+                   "periodo",
+                   "Canal",
+                   "Subcanal")
