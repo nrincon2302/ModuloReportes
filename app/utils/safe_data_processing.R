@@ -508,10 +508,10 @@ cols_habilidades <- c("anio",
                       "Subcanal", 
                       "Id_Sector")
 
-cols_universe <- c("fecha_radicado_salida",
-                   "fecha_vencimiento",
+cols_universe <- c("id",
                    "label",
-                   "dias_gestion",
-                   "periodo",
-                   "Canal",
-                   "Subcanal")
+                   "entidad",
+                   "fecha_ingreso",
+                   "tipo_gestion",
+                   "dependencia",
+                   "periodo")
