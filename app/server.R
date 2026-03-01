@@ -361,19 +361,6 @@ server <- function(input, output, session) {
       )
     })
     
-    # Observer de timeout: si tras 60 s el startup sigue sin completarse, avisa
-    observe({
-      invalidateLater(60000)
-      isolate({
-        if (is.null(startup_ready_ts())) {
-          showNotification(
-            "⚠️ La carga de datos está tardando más de lo esperado. Verifique la conexión o recargue la página.",
-            type = "warning", duration = NULL, id = "timeout_warning"
-          )
-        }
-      })
-    })
-    
     # ===========================================
     # MÓDULO PRINCIPAL DE DASHBOARD
     # ===========================================

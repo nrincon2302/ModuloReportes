@@ -1,3 +1,36 @@
+x-shiny-base: &shiny-base
+  image: ${DOCKERHUB_USERNAME}/modulo-reportes:latest
+  restart: unless-stopped
+  env_file:
+    - .env
+  user: "shiny"
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  # Recursos por réplica: 4 servicios × (1.5 CPU / 1.5 GB) = 6 CPU / 6 GB total.
+  # Ligero por instancia → menos presión de memoria si una sesión tiene un leak.
+  deploy:
+    resources:
+      limits:
+        cpus: "1.5"
+        memory: 1500M
+      reservations:
+        cpus: "0.5"
+        memory: 512M
+  tmpfs:
+    - /tmp
+    - /run
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:3838"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+    start_period: 20s
+  networks:
+    - shiny_net
+
 services:
   nginx:
     image: nginx:alpine
@@ -7,47 +40,34 @@ services:
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - shiny
+      shiny_1:
+        condition: service_healthy
+      shiny_2:
+        condition: service_healthy
+      shiny_3:
+        condition: service_healthy
+      shiny_4:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - shiny_net
 
-  shiny:
-    #build: .
-    #image: modulo-reportes:latest
-    image: ${DOCKERHUB_USERNAME}/modulo-reportes:latest
-    restart: unless-stopped
-    env_file:
-      - .env
-    # Seguridad
-    user: "shiny"
-    read_only: true
-    cap_drop:
-      - ALL
-    security_opt:
-      - no-new-privileges:true
-    # Recursos por réplica
-    deploy:
-      replicas: 4
-      resources:
-        limits:
-          cpus: "2.0"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    # Directorios temporales en memoria
-    tmpfs:
-      - /tmp
-      - /run
-    # Healthcheck
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3838"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-    networks:
-      - shiny_net
+  # ── Réplicas Shiny ─────────────────────────────────────────────────────────
+  shiny_1:
+    <<: *shiny-base
+    container_name: shiny-1
+
+  shiny_2:
+    <<: *shiny-base
+    container_name: shiny-2
+
+  shiny_3:
+    <<: *shiny-base
+    container_name: shiny-3
+
+  shiny_4:
+    <<: *shiny-base
+    container_name: shiny-4
 
 networks:
   shiny_net:
