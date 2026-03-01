@@ -26,6 +26,7 @@ params:
   nivel_consulta: "No especificado"
   sectores_seleccionados: NULL
   entidades_seleccionadas: NULL
+  canales_seleccionados: NULL
   canal_seleccionado: NULL
   subcanales_seleccionados: NULL
   detalle_canal: FALSE
@@ -274,6 +275,9 @@ if (isTRUE(params$detalle_canal)) {
       knitr::asis_output(paste0("- **Subcanales:** ", formatear_seleccion(params$subcanales_seleccionados), "\n"))
     }
   }
+} else if (!is.null(params$canales_seleccionados) && length(params$canales_seleccionados) > 0) {
+  todos_canales <- length(params$canales_seleccionados)
+  knitr::asis_output(paste0("- **Canales Seleccionados:** ", formatear_seleccion(params$canales_seleccionados), "\n"))
 }
 ```
 

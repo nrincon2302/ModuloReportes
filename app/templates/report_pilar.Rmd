@@ -32,6 +32,10 @@ params:
   nivel_consulta: "No especificado"
   sectores_seleccionados: NULL
   entidades_seleccionadas: NULL
+  canales_seleccionados: NULL
+  canal_seleccionado: NULL
+  subcanales_seleccionados: NULL
+  detalle_canal: FALSE
   datos_dimension: NULL
   datos_filtrados: NULL
 ---
@@ -77,9 +81,18 @@ if (tiene_datos) {
     mutate(Indicador = factor(Indicador, levels = Indicador))
 
   if (tiene_datos_filtrados) {
-    # Datos por Canal
-    if ("Canal" %in% names(params$datos_filtrados)) {
+    # Datos por Canal o Subcanal (según el modo activo)
+    if ("Subcanal" %in% names(params$datos_filtrados)) {
       datos_canal <- params$datos_filtrados %>%
+        group_by(Subcanal) %>%
+        summarise(Valor = suppressWarnings(mean(as.numeric(Valor), na.rm = TRUE)), .groups = 'drop') %>%
+        filter(!is.na(Subcanal), !is.na(Valor)) %>%
+        mutate(Valor = round(Valor, 1)) %>%
+        arrange(desc(Valor)) %>%
+        mutate(Subcanal = factor(Subcanal, levels = Subcanal))
+    } else if ("Canal" %in% names(params$datos_filtrados)) {
+      datos_canal <- params$datos_filtrados %>%
+        filter(!is.na(Canal)) %>%
         group_by(Canal) %>%
         summarise(Valor = suppressWarnings(mean(as.numeric(Valor), na.rm = TRUE)), .groups = 'drop') %>%
         filter(!is.na(Canal), !is.na(Valor)) %>%
@@ -185,6 +198,18 @@ if (params$nivel_consulta == "Sector") {
 } else {
   knitr::asis_output("- **Alcance:** Distrito completo\n")
 }
+
+# Información de canal/subcanal
+if (isTRUE(params$detalle_canal)) {
+  if (!is.null(params$canal_seleccionado)) {
+    knitr::asis_output(paste0("- **Canal:** ", params$canal_seleccionado, "\n"))
+    if (!is.null(params$subcanales_seleccionados) && length(params$subcanales_seleccionados) > 0) {
+      knitr::asis_output(paste0("- **Subcanales:** ", formatear_seleccion(params$subcanales_seleccionados), "\n"))
+    }
+  }
+} else if (!is.null(params$canales_seleccionados) && length(params$canales_seleccionados) > 0) {
+  knitr::asis_output(paste0("- **Canales Seleccionados:** ", formatear_seleccion(params$canales_seleccionados), "\n"))
+}
 ```
 
 # Visualizaciones de la Dimensión
@@ -233,12 +258,24 @@ if (!is.null(datos_canal) && nrow(datos_canal) > 0) {
   datos_canal <- datos_canal %>%
     mutate(color = sapply(Valor, get_color))
 
-  ggplot(datos_canal, aes(x = Valor, y = Canal)) +
+  # Determinar eje Y dinámicamente: Subcanal o Canal
+  if ("Subcanal" %in% names(datos_canal)) {
+    titulo_canal <- if (!is.null(params$canal_seleccionado))
+      paste("Subcanales —", params$canal_seleccionado)
+    else
+      "Desempeño por Subcanal"
+    p <- ggplot(datos_canal, aes(x = Valor, y = Subcanal))
+  } else {
+    titulo_canal <- "Desempeño por Canal"
+    p <- ggplot(datos_canal, aes(x = Valor, y = Canal))
+  }
+
+  p +
     geom_col(aes(fill = color), width = 0.6) +
     geom_text(aes(label = round(Valor,1)), hjust = -0.1, size = 3.8, fontface = "bold", family = fuente_base) +
     scale_fill_identity() +
     scale_x_continuous(limits = c(0, 105), expand = expansion(mult = c(0, 0.02))) +
-    labs(title = "Desempeño por Canal", x = "Valor", y = NULL) +
+    labs(title = titulo_canal, x = "Valor", y = NULL) +
     theme(
       plot.title = element_text(size = 13),
       axis.text = element_text(size = 10),

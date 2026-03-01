@@ -57,7 +57,6 @@ rm(list = ls())
   entrada   <- sprintf("[%s] [ODK-%s] %s", timestamp, level, msg)
   message(entrada)
   tryCatch(
-    cat(entrada, "\n", file = "/tmp/odk_debug.log", append = TRUE),
     error = function(e) NULL
   )
 }
@@ -248,7 +247,6 @@ fa_password <- Sys.getenv("FASTAPI_PASSWORD")
   entrada   <- sprintf("[%s] [FASTAPI-%s] %s", timestamp, level, msg)
   message(entrada)  # aparece en la consola / logs de Shiny
   tryCatch(
-    cat(entrada, "\n", file = "/tmp/fastapi_debug.log", append = TRUE),
     error = function(e) NULL  # si no hay permisos de escritura, no rompe nada
   )
 }

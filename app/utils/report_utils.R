@@ -64,9 +64,10 @@ preparar_entorno_reporte <- function(template, logo = NULL, parametros = list())
 generar_reporte_indice <- function(
     datos_filtrados,
     nivel_consulta,
-    sectores_seleccionados = NULL,
-    entidades_seleccionadas = NULL,
-    canal_seleccionado = NULL,
+    sectores_seleccionados   = NULL,
+    entidades_seleccionadas  = NULL,
+    canales_seleccionados    = NULL,
+    canal_seleccionado       = NULL,
     subcanales_seleccionados = NULL,
     detalle_canal = FALSE,
     titulo_ranking = "Ranking de Entidades",
@@ -77,19 +78,20 @@ generar_reporte_indice <- function(
     datos_entidad = NULL
 ) {
   parametros <- list(
-    datos_filtrados = datos_filtrados,
-    nivel_consulta = nivel_consulta,
-    sectores_seleccionados = sectores_seleccionados,
-    entidades_seleccionadas = entidades_seleccionadas,
-    canal_seleccionado = canal_seleccionado,
+    datos_filtrados          = datos_filtrados,
+    nivel_consulta           = nivel_consulta,
+    sectores_seleccionados   = sectores_seleccionados,
+    entidades_seleccionadas  = entidades_seleccionadas,
+    canales_seleccionados    = canales_seleccionados,
+    canal_seleccionado       = canal_seleccionado,
     subcanales_seleccionados = subcanales_seleccionados,
-    detalle_canal = detalle_canal,
-    titulo_ranking = titulo_ranking,
-    indice_global = indice_global,
-    datos_pilar = datos_pilar,
-    datos_periodo = datos_periodo,
-    datos_canal = datos_canal,
-    datos_entidad = datos_entidad
+    detalle_canal            = detalle_canal,
+    titulo_ranking           = titulo_ranking,
+    indice_global            = indice_global,
+    datos_pilar              = datos_pilar,
+    datos_periodo            = datos_periodo,
+    datos_canal              = datos_canal,
+    datos_entidad            = datos_entidad
   )
   
   preparar_entorno_reporte(
@@ -130,19 +132,27 @@ generar_reporte_dimension <- function(
     dimension_nombre,
     indicador_seleccionado,
     nivel_consulta,
-    sectores_seleccionados = NULL,
-    entidades_seleccionadas = NULL
+    sectores_seleccionados   = NULL,
+    entidades_seleccionadas  = NULL,
+    canales_seleccionados    = NULL,
+    canal_seleccionado       = NULL,
+    subcanales_seleccionados = NULL,
+    detalle_canal            = FALSE
 ) {
   parametros <- list(
-    componente = componente,
-    pilar_nombre = pilar_nombre,
-    dimension_nombre = dimension_nombre,
-    indicador_seleccionado = indicador_seleccionado,
-    nivel_consulta = nivel_consulta,
-    sectores_seleccionados = sectores_seleccionados,
-    entidades_seleccionadas = entidades_seleccionadas,
-    datos_dimension = datos_dimension,
-    datos_filtrados = datos_filtrados
+    componente               = componente,
+    pilar_nombre             = pilar_nombre,
+    dimension_nombre         = dimension_nombre,
+    indicador_seleccionado   = indicador_seleccionado,
+    nivel_consulta           = nivel_consulta,
+    sectores_seleccionados   = sectores_seleccionados,
+    entidades_seleccionadas  = entidades_seleccionadas,
+    canales_seleccionados    = canales_seleccionados,
+    canal_seleccionado       = canal_seleccionado,
+    subcanales_seleccionados = subcanales_seleccionados,
+    detalle_canal            = detalle_canal,
+    datos_dimension          = datos_dimension,
+    datos_filtrados          = datos_filtrados
   )
   
   preparar_entorno_reporte(
@@ -151,4 +161,3 @@ generar_reporte_dimension <- function(
     parametros = parametros
   )
 }
-
