@@ -114,7 +114,8 @@ server <- function(input, output, session) {
       rv_bg$ranking_entidades <- NULL
     }
     
-    generar_historico_ultimos_periodos <- function(nivel, ids_seleccionados) {
+    generar_historico_ultimos_periodos <- function(nivel, ids_seleccionados,
+                                                   canal = NULL, subcanal = NULL) {
       fecha_actual <- lubridate::floor_date(Sys.Date(), "month")
       ultimos_4    <- seq(from = fecha_actual, by = "-1 month", length.out = 4)
       historicos   <- list()
@@ -123,6 +124,8 @@ server <- function(input, output, session) {
         historicos[[periodo_key]] <- generar_dataframes_con_filtros(
           anios             = as.integer(format(as.Date(periodo), "%Y")),
           meses             = as.integer(format(as.Date(periodo), "%m")),
+          canal             = canal,
+          subcanal          = subcanal,
           nivel             = nivel,
           ids_seleccionados = ids_seleccionados
         )
@@ -271,7 +274,9 @@ server <- function(input, output, session) {
           if ((is.null(filtros$anios) || length(filtros$anios) == 0) && !is_period_vector) {
             generar_historico_ultimos_periodos(
               nivel             = filtros$nivel,
-              ids_seleccionados = filtros$ids
+              ids_seleccionados = filtros$ids,
+              canal             = canal_global,
+              subcanal          = subcanal_global
             )
           } else {
             actualizar_dataframes_historico(
@@ -384,11 +389,6 @@ server <- function(input, output, session) {
         
         sel_event <- origen$evento()
         sel_anios <- sel_event$filtro_anio
-        
-        if (is.null(sel_anios) || length(sel_anios) == 0) {
-          showNotification("Debe seleccionar al menos un año.", type = "warning")
-          return()
-        }
         
         periodos      <- normalizar_periodos(sel_anios, sel_event$filtro_mes)
         estado_origen <- isolate(origen$estado())
