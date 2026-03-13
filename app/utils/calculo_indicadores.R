@@ -351,7 +351,7 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       c2_p4_d9_05 = ((mean(as.numeric(mod3_g7_g7_1_p7_4), na.rm = T)-1)/4)*100,
       c2_p4_d9_06 = ((mean(as.numeric(mod3_g7_g7_1_p7_5), na.rm = T)-1)/4)*100,
       c2_p4_d9_07 = ((mean(as.numeric(mod3_g7_g7_1_p7_6), na.rm = T)-1)/4)*100,
-      c2_p4_d9_08 = sum(mod3_p9 %in% c("1"))/n()*100
+      c2_p4_d9_08 = (1-sum(mod3_p9 %in% c("1"))/n())*100
     ) %>% ungroup() %>% 
     mutate(
       ponderador = num_obs / sum(num_obs)
@@ -747,7 +747,7 @@ calculo_criterios <- function() {
       c2_p4_d9_05_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_4), na.rm = T)) < 3.0,
       c2_p4_d9_06_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_5), na.rm = T)) < 3.0,
       c2_p4_d9_07_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_6), na.rm = T)) < 3.0,
-      c2_p4_d9_08_cr1 = sum(mod3_p9 %in% c("1"))/n() < 0.9 # Aplica si es menor estricto a 0.35
+      c2_p4_d9_08_cr1 = 1-sum(mod3_p9 %in% c("1"))/n() < 0.9 # Aplica si es menor estricto a 0.35
     )
   
   # 3. Consolidación de resultados
