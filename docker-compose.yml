@@ -4,9 +4,13 @@ services:
     image: nginx:alpine
     container_name: shiny-proxy
     ports:
-      - "4000:80"
+      - "4000:443"   # ahora HTTPS
+      - "4005:80"    # opcional (redirect)
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - shiny1
       - shiny2
