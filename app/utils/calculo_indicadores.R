@@ -728,25 +728,25 @@ calculo_criterios <- function() {
   Ind_p4 <- preparar_base(base_encuesta, "mod1_gp1_c4") %>% 
     summarise(
       # TODOS APLICAN SOLO SI PROMEDIO ES MENOR ESTRICTO A 3
-      c2_p4_d8_01_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_1), na.rm = T)) < 3.0,
-      c2_p4_d8_02_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_2), na.rm = T)) < 3.0,
-      c2_p4_d8_03_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_3), na.rm = T)) < 3.0,
-      c2_p4_d8_04_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_4), na.rm = T)) < 3.0,
-      c2_p4_d8_05_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_5), na.rm = T)) < 3.0,
-      c2_p4_d8_06_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_6), na.rm = T)) < 3.0,
-      c2_p4_d8_07_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_7), na.rm = T)) < 3.0,
-      c2_p4_d8_08_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_8), na.rm = T)) < 3.0,
-      c2_p4_d8_09_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_9), na.rm = T)) < 3.0,
-      c2_p4_d8_10_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_10), na.rm = T)) < 3.0,
-      c2_p4_d8_11_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_11), na.rm = T)) < 3.0,
+      c2_p4_d8_01_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_1), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_02_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_2), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_03_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_3), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_04_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_4), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_05_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_5), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_06_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_6), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_07_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_7), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_08_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_8), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_09_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_9), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_10_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_10), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d8_11_cr1 = (mean(as.numeric(mod2_g5_g5_1_p5_11), na.rm = T)-1)/4 < 0.9,
       c2_p4_d8_12_cr1 = sum(mod3_p8 %in% c("1"))/n() < 0.9, # Aplica si es menor estricto a 0.35
       c2_p4_d9_01_cr1 = sum(mod3_gp6_p6 %in% c("1"))/n() < 0.9, # Aplica si es menor estricto a 0.35
-      c2_p4_d9_02_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_1), na.rm = T)) < 3.0,
-      c2_p4_d9_03_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_2), na.rm = T)) < 3.0,
-      c2_p4_d9_04_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_3), na.rm = T)) < 3.0,
-      c2_p4_d9_05_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_4), na.rm = T)) < 3.0,
-      c2_p4_d9_06_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_5), na.rm = T)) < 3.0,
-      c2_p4_d9_07_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_6), na.rm = T)) < 3.0,
+      c2_p4_d9_02_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_1), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d9_03_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_2), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d9_04_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_3), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d9_05_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_4), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d9_06_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_5), na.rm = T)-1)/4 < 0.9,
+      c2_p4_d9_07_cr1 = (mean(as.numeric(mod3_g7_g7_1_p7_6), na.rm = T)-1)/4 < 0.9,
       c2_p4_d9_08_cr1 = 1-sum(mod3_p9 %in% c("1"))/n() < 0.9 # Aplica si es menor estricto a 0.35
     )
   

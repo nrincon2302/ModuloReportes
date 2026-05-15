@@ -760,7 +760,8 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         # se usan los datos del canal padre seleccionado ──────────────────
         signals$canal()
         canal_sel  <- ev$filtro_canal_selector
-        datos_canal_sel <- rv_bg$canal[[canal_sel]]
+        datos_canal_sel = list(general = NULL)
+        datos_canal_sel$general <- rv_bg$canal[[canal_sel]]
         
         if (is.null(datos_canal_sel)) {
           return(placeholder_chart("⚠ Los datos del canal aún no están disponibles. Presione 'Aplicar Filtros'."))
