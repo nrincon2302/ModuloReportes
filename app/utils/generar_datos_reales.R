@@ -7,7 +7,7 @@ library(tibble)
 # Retorna el valor del índice del componente en cuestión
 # ============================================
 obtener_indice_componente <- function(data, id_componente) {
-  # Retornar el índice del componente actual
+  if (is.null(data) || is.null(data$indices)) return(NA_real_)
   indice_comp <- NULL
   
   if (as.numeric(id_componente) == 1) {
@@ -282,8 +282,9 @@ extraer_indicadores_subcanal <- function(data_subcanal, indicadores) {
 # HELPERS DE UTILIDAD (Estáticos)
 # ============================================
 obtener_canales <- function() {
-  if (exists("df_canales_lista")) return(df_canales_lista$Canal)
-  return(c("Presencial", "Telefónico", "Virtual"))
+  base <- if (exists("df_canales_lista")) df_canales_lista$Canal
+  else c("Presencial", "Telefónico", "Virtual")
+  c(base, "Sin Canal")
 }
 
 obtener_subcanales <- function(canal) {

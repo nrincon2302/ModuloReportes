@@ -319,7 +319,7 @@ if (tiene_datos && !is.na(indice_global)) {
       end_rad = rescale(end, to = c(-pi/2, pi/2), from = c(0, 100))
     )
 
-  needle_rad <- rescale(indice_plot, to = c(-pi/2, pi/2), from = c(0, 100))
+  needle_rad <- rescale(indice_plot, to = c(pi, 0), from = c(0, 100))
 
   ggplot() +
     geom_arc_bar(

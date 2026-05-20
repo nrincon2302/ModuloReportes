@@ -129,7 +129,7 @@ if (tiene_datos) {
 get_color <- function(value) {
   if (is.na(value)) return("#CCCCCC")
   if (value < 90) return("#E3272A")   # Crítico: Rojo
-  if (value < 98) return("#F9D248")   # Aceptable: Amarillo
+  if (value < 97) return("#F9D248")   # Aceptable: Amarillo
   return("#8CBE23")                    # Óptimo: Verde
 }
 

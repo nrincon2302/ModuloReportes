@@ -91,7 +91,11 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       filter(
         if (!is.null(ids_seleccionados)) .data[[col_target]] %in% ids_seleccionados else TRUE,
         if (!is.null(periodos)) periodo %in% periodos else TRUE,
-        if (!is.null(canal)) Canal %in% canal else TRUE,
+        if (!is.null(canal)) {
+          .sin  <- "Sin Canal" %in% canal
+          .otros <- setdiff(canal, "Sin Canal")
+          Canal %in% .otros | (.sin & is.na(Canal))
+        } else TRUE,
         if (!is.null(subcanal)) Subcanal %in% subcanal else TRUE
       )
     
@@ -115,7 +119,11 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       filter(
         if (!is.null(ids_seleccionados)) .data[[col_target]] %in% ids_seleccionados else TRUE,
         if (!is.null(periodos)) periodo %in% periodos else TRUE,
-        if (!is.null(canal)) Canal %in% canal else TRUE,
+        if (!is.null(canal)) {
+          .sin  <- "Sin Canal" %in% canal
+          .otros <- setdiff(canal, "Sin Canal")
+          Canal %in% .otros | (.sin & is.na(Canal))
+        } else TRUE,
         if (!is.null(subcanal)) Subcanal %in% subcanal else TRUE
       )
     

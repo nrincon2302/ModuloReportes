@@ -72,7 +72,7 @@ generar_dataframes_filtrados_startup <- function() {
   )
   
   # 2-4. Por canal
-  canales <- c("Presencial", "Telefónico", "Virtual")
+  canales <- obtener_canales()
   resultados$canales <- list()
   for (canal in canales) {
     resultados$canales[[canal]] <- generar_dataframes_con_filtros(

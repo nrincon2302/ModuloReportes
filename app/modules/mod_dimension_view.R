@@ -235,7 +235,7 @@ dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals
         mutate(
           Indice = round(as.numeric(Valor), 1),
           Color = case_when(
-            Indice >= 98 ~ "#8CBE23",
+            Indice >= 97 ~ "#8CBE23",
             Indice >= 90 ~ "#F9D248",
             TRUE ~ "#E3272A"
           )
@@ -800,7 +800,7 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         mutate(
           Valor = round(as.numeric(Valor), 1),
           Color = dplyr::case_when(
-            Valor >= 98 ~ "#8CBE23",
+            Valor >= 97 ~ "#8CBE23",
             Valor >= 90 ~ "#F9D248",
             TRUE        ~ "#E3272A"
           )

@@ -437,7 +437,8 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
         id_comp      <- id_componente_reactive()
         pilares_data <- obtener_indices_pilares(datos$general, id_comp)
         
-        if (is.null(pilares_data) || nrow(pilares_data) == 0)
+        if (is.null(pilares_data) || nrow(pilares_data) == 0 ||
+            all(is.na(pilares_data$Valor)))
           return(.error_chart("No hay datos de pilares disponibles."))
         
         hchart(pilares_data %>% mutate(Valor = round(as.numeric(Valor), 1)),
@@ -483,25 +484,24 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
       if (is.null(ranking) || nrow(ranking) == 0) return(NULL)
       
       if (input$filtro_nivel == "Sector") {
-        ids_sectores <- ids_seleccionados()
-        if (!is.null(ids_sectores) && length(ids_sectores) > 0) {
-          ids_entidades <- tryCatch(
-            df_entidades %>% filter(Id_Sector %in% ids_sectores) %>% pull(Id_Entidad),
-            error = function(e) NULL
-          )
-          if (!is.null(ids_entidades) && length(ids_entidades) > 0)
-            ranking <- ranking %>% filter(Id_Entidad %in% ids_entidades)
-        }
+        sectores_sel <- input$sector_checks
+        if (is.null(sectores_sel) || length(sectores_sel) == 0) return(NULL)
+        ids_sectores <- df_sectores %>% filter(Sector %in% sectores_sel) %>% pull(Id_Sector)
+        ids_entidades <- tryCatch(
+          df_entidades %>% filter(Id_Sector %in% ids_sectores) %>% pull(Id_Entidad),
+          error = function(e) NULL
+        )
+        if (!is.null(ids_entidades) && length(ids_entidades) > 0)
+          ranking <- ranking %>% filter(Id_Entidad %in% ids_entidades)
       } else if (input$filtro_nivel == "Entidad") {
-        ids_entidades <- ids_seleccionados()
-        if (!is.null(ids_entidades) && length(ids_entidades) > 0) {
-          ents <- tryCatch(
-            df_entidades %>% filter(Id_Entidad %in% ids_entidades) %>% pull(Entidad),
-            error = function(e) NULL
-          )
-          if (!is.null(ents) && length(ents) > 0)
-            ranking <- ranking %>% filter(Entidad %in% ents)
-        }
+        entidades_sel <- input$entidad_checks
+        if (is.null(entidades_sel) || length(entidades_sel) == 0) return(NULL)
+        ents <- tryCatch(
+          df_entidades %>% filter(Entidad %in% entidades_sel) %>% pull(Entidad),
+          error = function(e) NULL
+        )
+        if (!is.null(ents) && length(ents) > 0)
+          ranking <- ranking %>% filter(Entidad %in% ents)
       }
       
       if (is.null(ranking) || nrow(ranking) == 0) return(NULL)
@@ -523,7 +523,7 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
           mutate(
             Indice = as.numeric(round(Valor, 1)),
             Color = case_when(
-              Indice >= 98 ~ "#8CBE23",
+              Indice >= 97 ~ "#8CBE23",
               Indice >= 90 ~ "#F9D248",
               TRUE ~ "#E3272A"
             )
@@ -582,14 +582,16 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals) 
         if (!ver_detalle) {
           datos_graf  <- obtener_indices_por_canal(datos_struct$canal, id_comp)
           
+          if (is.null(datos_graf) || nrow(datos_graf) == 0)
+            return(.error_chart("Sin datos de canal para la selección actual."))
+          
           # Filtrar por canales seleccionados (si hay selección parcial)
           canales_sel <- ev$canales_checks
           if (!is.null(canales_sel) && length(canales_sel) > 0) {
             datos_graf <- datos_graf %>% filter(Canal %in% canales_sel)
+            if (nrow(datos_graf) == 0)
+              return(.error_chart("Ningún canal seleccionado tiene datos para este indicador"))
           }
-          
-          if (is.null(datos_graf) || nrow(datos_graf) == 0)
-            return(.error_chart("Sin datos de canal para la selección actual."))
           
           # Redondear antes del hcaes para que el tooltip muestre "Indice" limpio
           datos_graf <- datos_graf %>% mutate(Indice = round(as.numeric(Indice), 1))

@@ -404,11 +404,18 @@ server <- function(input, output, session) {
         if (!is.null(subcanal_ids) && length(subcanal_ids) > 0) {
           # Modo subcanal: filtra por un canal específico y sus subcanales
           canal_global <- sel_event$filtro_canal_selector
-        } else if (!is.null(sel_event$canales_checks) && length(sel_event$canales_checks) > 0) {
-          # Modo canal: filtra por los canales seleccionados (puede ser vector)
-          canal_global <- sel_event$canales_checks
         } else {
-          canal_global <- NULL
+          # Modo canal: solo filtrar si es una selección PARCIAL de canales.
+          # "Todos seleccionados" equivale a sin filtro (NULL) para no excluir
+          # bases sin Canal asignado (base_proceso, base_pqrds, df_habilidades…)
+          todos_canales <- tryCatch(obtener_canales(), error = function(e) character(0))
+          canales_sel   <- sel_event$canales_checks
+          es_seleccion_parcial <- !is.null(canales_sel) &&
+            length(canales_sel) > 0 &&
+            !(length(todos_canales) > 0 &&
+                length(canales_sel) == length(todos_canales) &&
+                all(sort(canales_sel) == sort(todos_canales)))
+          canal_global <- if (es_seleccion_parcial) canales_sel else NULL
         }
         
         filtros <- list(
@@ -423,20 +430,6 @@ server <- function(input, output, session) {
           filtro_canal_detalle  = sel_event$filtro_canal_detalle,
           filtro_canal_selector = sel_event$filtro_canal_selector,
           subcanales_checks     = sel_event$subcanales_checks
-        )
-        
-        # ── LOG de filtros aplicados ─────────────────────────────────────────────
-        message(
-          "\n[FILTROS] ", format(Sys.time(), "%H:%M:%S"),
-          "\n  nivel:        ", filtros$nivel,
-          "\n  anios:        ", paste(filtros$anios, collapse = ", "),
-          "\n  meses:        ", paste(filtros$meses, collapse = ", "),
-          "\n  ids (n):      ", length(filtros$ids),
-          "\n  canales:      ", paste(filtros$canales_checks, collapse = ", "),
-          "\n  canal_detalle:", isTRUE(filtros$filtro_canal_detalle),
-          "\n  canal(global):", paste(filtros$canal, collapse = ", "),
-          "\n  subcanales:   ", paste(filtros$subcanales_checks, collapse = ", "),
-          "\n  subcanal_ids: ", paste(filtros$subcanal_ids, collapse = ", ")
         )
         
         job_filtros_running(TRUE)
