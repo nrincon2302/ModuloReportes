@@ -42,7 +42,7 @@ source("utils/odk_helpers.R")
 ###### Directorio de trabajo
 gc()
 rm(list = ls())
-readRenviron(file.path(getwd(), ".Renviron"))
+#readRenviron(file.path(getwd(), ".Renviron"))
 
 
 # ===========================================================

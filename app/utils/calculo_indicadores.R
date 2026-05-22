@@ -27,11 +27,20 @@ recodificar_interes <- function(df, cols) {
         as.character(df[[col]]) == "1" ~ 1,
         as.character(df[[col]]) == "2" ~ 0,
         as.character(df[[col]]) == "3" ~ 0.5,
-        TRUE ~ 0
+        TRUE ~ NA_real_
       )
     }
   }
   return(df)
+}
+
+# Suma de columnas ignorando NAs en numerador Y denominador.
+# El denominador es el total de valores no-NA.
+pct_sum_cols <- function(...) {
+  mat <- cbind(...)
+  total_validos <- sum(!is.na(mat))
+  if (total_validos == 0L) return(NA_real_)
+  sum(mat, na.rm = TRUE) / total_validos * 100
 }
 
 # Listas de variables para recodificar
@@ -234,19 +243,19 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
   Ind_p3_1 <- preparar_base(base_CO_capa, "mod1_gp1_c1", "mod1_gp1_p1") %>% 
     summarise(
       num_obs = n(),
-      c1_p3_d5_01 = (sum(mod2_p8 + mod2_p9 + mod2_p10 + mod2_p11 + mod2_p12 +
-                           mod2_p13 + mod2_p14 + mod2_p15 + mod2_p16 + mod2_p17)/(n()*10)*100),
-      c1_p3_d5_02 = (sum(mod3_mod3_1_mod3_1_1_p18 + mod3_mod3_1_mod3_1_1_p19 +
-                           mod3_mod3_1_mod3_1_1_p20 + mod3_mod3_1_mod3_1_1_p21 +
-                           mod3_mod3_1_mod3_1_1_p22 + mod3_mod3_1_mod3_1_1_p23 +
-                           mod3_mod3_1_mod3_1_1_p24 + mod3_mod3_1_mod3_1_2_p25 +
-                           mod3_mod3_1_mod3_1_2_p26 + mod3_mod3_1_mod3_1_2_p27 +
-                           mod3_mod3_1_mod3_1_2_p28 + mod3_mod3_1_mod3_1_2_p29 +
-                           mod3_mod3_1_mod3_1_2_p30)/(n()*13)*100),
+      c1_p3_d5_01 = pct_sum_cols(mod2_p8, mod2_p9, mod2_p10, mod2_p11, mod2_p12,
+                                 mod2_p13, mod2_p14, mod2_p15, mod2_p16, mod2_p17),
+      c1_p3_d5_02 = pct_sum_cols(mod3_mod3_1_mod3_1_1_p18, mod3_mod3_1_mod3_1_1_p19,
+                                 mod3_mod3_1_mod3_1_1_p20, mod3_mod3_1_mod3_1_1_p21,
+                                 mod3_mod3_1_mod3_1_1_p22, mod3_mod3_1_mod3_1_1_p23,
+                                 mod3_mod3_1_mod3_1_1_p24, mod3_mod3_1_mod3_1_2_p25,
+                                 mod3_mod3_1_mod3_1_2_p26, mod3_mod3_1_mod3_1_2_p27,
+                                 mod3_mod3_1_mod3_1_2_p28, mod3_mod3_1_mod3_1_2_p29,
+                                 mod3_mod3_1_mod3_1_2_p30),
       c1_p3_d5_03 = sum(mod3_mod3_2_p32, na.rm = T)/sum(mod3_mod3_2_p31, na.rm = T)*100,
-      c1_p3_d5_04 = (sum(mod4_mod4_1_p33 + mod4_mod4_1_p34 + mod4_mod4_1_p35)/(n()*3)*100),
+      c1_p3_d5_04 = pct_sum_cols(mod4_mod4_1_p33, mod4_mod4_1_p34, mod4_mod4_1_p35),
       c1_p3_d5_05 = sum(mod4_mod4_2_p39, na.rm = T)/sum(mod4_mod4_2_p37, na.rm = T)*100,
-      c1_p3_d5_06 = (sum(mod4_mod4_3_p40 + mod4_mod4_3_p41)/(n()*2)*100),
+      c1_p3_d5_06 = pct_sum_cols(mod4_mod4_3_p40, mod4_mod4_3_p41),
       c1_p3_d5_07 = sum(mod4_mod4_4_p43, na.rm = T)/sum(mod4_mod4_4_p42, na.rm = T)*100
     ) %>% ungroup() %>% 
     mutate(
@@ -282,18 +291,21 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
   Ind_p3_3 <- preparar_base(base_CO_esta, "mod1_gp1_c1", "mod1_gp1_p1") %>% 
     summarise(
       num_obs = n(),
-      c1_p3_d7_01 = (sum(mod2_mod2_1_p6 + mod2_mod2_1_p7 + mod2_mod2_1_p8 + 
-                           mod2_mod2_1_p9 + mod2_mod2_1_p10 +
-                           mod2_mod2_1_p11 + mod2_mod2_1_p12)/(n()*7)*100),
+      c1_p3_d7_01 = pct_sum_cols(mod2_mod2_1_p6, mod2_mod2_1_p7, mod2_mod2_1_p8,
+                                 mod2_mod2_1_p9, mod2_mod2_1_p10,
+                                 mod2_mod2_1_p11, mod2_mod2_1_p12),
       c1_p3_d7_02 = (1-mean(as.numeric(mod2_mod2_2_p13)/max(as.numeric(mod2_mod2_2_p13), na.rm = T), na.rm = T))*100,
-      c1_p3_d7_03 = (sum(mod3_p14 + mod3_p15 + mod3_p16)/(n()*3)*100),
-      c1_p3_d7_04 = (sum(mod4_mod4_1_mod4_1_1_p17 + mod4_mod4_1_mod4_1_1_p18 + mod4_mod4_1_mod4_1_1_p19 + 
-                           mod4_mod4_1_mod4_1_1_p20 + mod4_mod4_1_mod4_1_1_p21 + mod4_mod4_1_mod4_1_1_p22 +
-                           mod4_mod4_1_mod4_1_1_p23 + mod4_mod4_1_mod4_1_2_p24 + mod4_mod4_1_mod4_1_2_p25 +
-                           mod4_mod4_1_mod4_1_2_p26 + mod4_mod4_1_mod4_1_2_p27 + mod4_mod4_1_mod4_1_2_p28 +
-                           mod4_mod4_1_mod4_1_2_p29 + mod4_mod4_1_mod4_1_2_p30 + mod4_mod4_1_mod4_1_2_p31)/(n()*15)*100),
+      c1_p3_d7_03 = pct_sum_cols(mod3_p14, mod3_p15, mod3_p16),
+      c1_p3_d7_04 = pct_sum_cols(mod4_mod4_1_mod4_1_1_p17, mod4_mod4_1_mod4_1_1_p18,
+                                 mod4_mod4_1_mod4_1_1_p19, mod4_mod4_1_mod4_1_1_p20,
+                                 mod4_mod4_1_mod4_1_1_p21, mod4_mod4_1_mod4_1_1_p22,
+                                 mod4_mod4_1_mod4_1_1_p23, mod4_mod4_1_mod4_1_2_p24,
+                                 mod4_mod4_1_mod4_1_2_p25, mod4_mod4_1_mod4_1_2_p26,
+                                 mod4_mod4_1_mod4_1_2_p27, mod4_mod4_1_mod4_1_2_p28,
+                                 mod4_mod4_1_mod4_1_2_p29, mod4_mod4_1_mod4_1_2_p30,
+                                 mod4_mod4_1_mod4_1_2_p31),
       c1_p3_d7_05 = (1-mean(as.numeric(mod4_mod4_2_p36)/max(as.numeric(mod4_mod4_2_p36), na.rm = T), na.rm = T))*100,
-      c1_p3_d7_06 = (sum(mod5_mod5_1_p39 + mod5_mod5_1_p40)/(n()*2)*100)
+      c1_p3_d7_06 = pct_sum_cols(mod5_mod5_1_p39, mod5_mod5_1_p40)
     ) %>% ungroup() %>% 
     mutate(
       ponderador = num_obs / sum(num_obs)
@@ -305,13 +317,13 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       num_obs = n(),
       c1_p3_d7_07 = sum(as.numeric(mod2_mod2_1_p8) == 1, na.rm = T)/sum(!is.na(mod2_mod2_1_p8))*100,
       c1_p3_d7_08 = sum(as.numeric(mod2_mod2_1_p9) == 1, na.rm = T)/sum(!is.na(mod2_mod2_1_p9))*100,
-      c1_p3_d7_09 = (sum(mod2_mod2_1_p10 + mod2_mod2_1_p11 + mod2_mod2_1_p12)/(n()*3)*100),
+      c1_p3_d7_09 = pct_sum_cols(mod2_mod2_1_p10, mod2_mod2_1_p11, mod2_mod2_1_p12),
       c1_p3_d7_10 = sum(as.numeric(mod2_mod2_2_p13) == 1, na.rm = T)/sum(!is.na(mod2_mod2_2_p13))*100,
-      c1_p3_d7_11 = (sum(mod2_mod2_2_p14 + mod2_mod2_2_p15 + mod2_mod2_2_p16 + mod2_mod2_2_p17)/(n()*4)*100),
-      c1_p3_d7_12 = (sum(mod2_mod2_3_p18 + mod2_mod2_3_p19 + mod2_mod2_3_p20 + mod2_mod2_3_p21 +
-                           mod2_mod2_3_p22 + mod2_mod2_3_p23 + mod2_mod2_3_p24 + mod2_mod2_3_gp25_p25 +
-                           mod2_mod2_3_p26)/(n()*9)*100),
-      c1_p3_d7_13 = (sum(mod2_mod2_4_p27 + mod2_mod2_4_p28 + mod2_mod2_4_p29)/(n()*3)*100)
+      c1_p3_d7_11 = pct_sum_cols(mod2_mod2_2_p14, mod2_mod2_2_p15, mod2_mod2_2_p16, mod2_mod2_2_p17),
+      c1_p3_d7_12 = pct_sum_cols(mod2_mod2_3_p18, mod2_mod2_3_p19, mod2_mod2_3_p20, mod2_mod2_3_p21,
+                                 mod2_mod2_3_p22, mod2_mod2_3_p23, mod2_mod2_3_p24,
+                                 mod2_mod2_3_gp25_p25, mod2_mod2_3_p26),
+      c1_p3_d7_13 = pct_sum_cols(mod2_mod2_4_p27, mod2_mod2_4_p28, mod2_mod2_4_p29)
     ) %>% ungroup() %>% 
     mutate(
       ponderador = num_obs / sum(num_obs)
@@ -321,16 +333,16 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
   Ind_p3_5 <- preparar_base(base_CO_virt, "mod1_gp1_c1", "mod1_gp1_p1") %>% 
     summarise(
       num_obs = n(),
-      c1_p3_d7_14 = (sum(mod2_mod2_1_p5 + mod2_mod2_1_p6 + mod2_mod2_1_p7 +
-                           mod2_mod2_1_p8 + mod2_mod2_1_p9 + mod2_mod2_1_p10 +
-                           mod2_mod2_1_p11)/(n()*7)*100),
-      c1_p3_d7_15 = (sum(mod2_mod2_2_mod2_2_1_p12 + mod2_mod2_2_mod2_2_1_gp12_p13 + 
-                           mod2_mod2_2_mod2_2_1_gp12_p14 + mod2_mod2_2_mod2_2_1_gp12_p15 +
-                           mod2_mod2_2_mod2_2_1_gp12_p16 + mod2_mod2_2_mod2_2_2_p17 +
-                           mod2_mod2_2_mod2_2_2_p18 + mod2_mod2_2_mod2_2_2_p19 +
-                           mod2_mod2_2_mod2_2_2_p20 + mod2_mod2_2_mod2_2_2_p21 + 
-                           mod2_mod2_2_mod2_2_2_p22)/(n()*11)*100),
-      c1_p3_d7_16 = (sum(mod2_mod2_3_p23 + mod2_mod2_3_p24 + mod2_mod2_3_p25)/(n()*3)*100)
+      c1_p3_d7_14 = pct_sum_cols(mod2_mod2_1_p5, mod2_mod2_1_p6, mod2_mod2_1_p7,
+                                 mod2_mod2_1_p8, mod2_mod2_1_p9, mod2_mod2_1_p10,
+                                 mod2_mod2_1_p11),
+      c1_p3_d7_15 = pct_sum_cols(mod2_mod2_2_mod2_2_1_p12, mod2_mod2_2_mod2_2_1_gp12_p13,
+                                 mod2_mod2_2_mod2_2_1_gp12_p14, mod2_mod2_2_mod2_2_1_gp12_p15,
+                                 mod2_mod2_2_mod2_2_1_gp12_p16, mod2_mod2_2_mod2_2_2_p17,
+                                 mod2_mod2_2_mod2_2_2_p18, mod2_mod2_2_mod2_2_2_p19,
+                                 mod2_mod2_2_mod2_2_2_p20, mod2_mod2_2_mod2_2_2_p21,
+                                 mod2_mod2_2_mod2_2_2_p22),
+      c1_p3_d7_16 = pct_sum_cols(mod2_mod2_3_p23, mod2_mod2_3_p24, mod2_mod2_3_p25)
     ) %>% ungroup() %>% 
     mutate(
       ponderador = num_obs / sum(num_obs)
@@ -606,35 +618,35 @@ calculo_criterios <- function() {
   # P3_1: Capacidad (base_CO_capa)
   Ind_p3_1 <- preparar_base(base_CO_capa, "mod1_gp1_p1") %>% 
     summarise(
-      c1_p3_d5_01_cr1 = (sum(mod2_p8)/n()) <= 0.89,
-      c1_p3_d5_01_cr2 = (sum(mod2_p9)/n()) <= 0.89,
-      c1_p3_d5_01_cr3 = (sum(mod2_p10)/n()) <= 0.89,
-      c1_p3_d5_01_cr4 = (sum(mod2_p11)/n()) <= 0.89,
-      c1_p3_d5_01_cr5 = (sum(mod2_p12)/n()) <= 0.89,
-      c1_p3_d5_01_cr6 = (sum(mod2_p13)/n()) <= 0.89,
-      c1_p3_d5_01_cr7 = (sum(mod2_p14)/n()) <= 0.89,
-      c1_p3_d5_01_cr8 = (sum(mod2_p15)/n()) <= 0.89,
-      c1_p3_d5_01_cr9 = (sum(mod2_p16)/n()) <= 0.89,
-      c1_p3_d5_01_cr10 = (sum(mod2_p17)/n()) <= 0.89,
-      c1_p3_d5_02_cr1 = (sum(mod3_mod3_1_mod3_1_1_p18)/n()) <= 0.89,
-      c1_p3_d5_02_cr2 = (sum(mod3_mod3_1_mod3_1_1_p19)/n()) <= 0.89,
-      c1_p3_d5_02_cr3 = (sum(mod3_mod3_1_mod3_1_1_p20)/n()) <= 0.89,
-      c1_p3_d5_02_cr4 = (sum(mod3_mod3_1_mod3_1_1_p21)/n()) <= 0.89,
-      c1_p3_d5_02_cr5 = (sum(mod3_mod3_1_mod3_1_1_p22)/n()) <= 0.89,
-      c1_p3_d5_02_cr6 = (sum(mod3_mod3_1_mod3_1_1_p23)/n()) <= 0.89,
-      c1_p3_d5_02_cr7 = (sum(mod3_mod3_1_mod3_1_1_p24)/n()) <= 0.89,
-      c1_p3_d5_02_cr8 = (sum(mod3_mod3_1_mod3_1_2_p25)/n()) <= 0.89,
-      c1_p3_d5_02_cr9 = (sum(mod3_mod3_1_mod3_1_2_p26)/n()) <= 0.89,
-      c1_p3_d5_02_cr10 = (sum(mod3_mod3_1_mod3_1_2_p27)/n()) <= 0.89,
-      c1_p3_d5_02_cr11 = (sum(mod3_mod3_1_mod3_1_2_p28)/n()) <= 0.89,
-      c1_p3_d5_02_cr12 = (sum(mod3_mod3_1_mod3_1_2_p29)/n()) <= 0.89,
-      c1_p3_d5_02_cr13 = (sum(mod3_mod3_1_mod3_1_2_p30)/n()) <= 0.89,
+      c1_p3_d5_01_cr1 = (sum(mod2_p8, na.rm = T)/sum(!is.na(mod2_p8))) <= 0.89,
+      c1_p3_d5_01_cr2 = (sum(mod2_p9, na.rm = T)/sum(!is.na(mod2_p9))) <= 0.89,
+      c1_p3_d5_01_cr3 = (sum(mod2_p10, na.rm = T)/sum(!is.na(mod2_p10))) <= 0.89,
+      c1_p3_d5_01_cr4 = (sum(mod2_p11, na.rm = T)/sum(!is.na(mod2_p11))) <= 0.89,
+      c1_p3_d5_01_cr5 = (sum(mod2_p12, na.rm = T)/sum(!is.na(mod2_p12))) <= 0.89,
+      c1_p3_d5_01_cr6 = (sum(mod2_p13, na.rm = T)/sum(!is.na(mod2_p13))) <= 0.89,
+      c1_p3_d5_01_cr7 = (sum(mod2_p14, na.rm = T)/sum(!is.na(mod2_p14))) <= 0.89,
+      c1_p3_d5_01_cr8 = (sum(mod2_p15, na.rm = T)/sum(!is.na(mod2_p15))) <= 0.89,
+      c1_p3_d5_01_cr9 = (sum(mod2_p16, na.rm = T)/sum(!is.na(mod2_p16))) <= 0.89,
+      c1_p3_d5_01_cr10 = (sum(mod2_p17, na.rm = T)/sum(!is.na(mod2_p17))) <= 0.89,
+      c1_p3_d5_02_cr1 = (sum(mod3_mod3_1_mod3_1_1_p18, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p18))) <= 0.89,
+      c1_p3_d5_02_cr2 = (sum(mod3_mod3_1_mod3_1_1_p19, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p19))) <= 0.89,
+      c1_p3_d5_02_cr3 = (sum(mod3_mod3_1_mod3_1_1_p20, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p20))) <= 0.89,
+      c1_p3_d5_02_cr4 = (sum(mod3_mod3_1_mod3_1_1_p21, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p21))) <= 0.89,
+      c1_p3_d5_02_cr5 = (sum(mod3_mod3_1_mod3_1_1_p22, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p22))) <= 0.89,
+      c1_p3_d5_02_cr6 = (sum(mod3_mod3_1_mod3_1_1_p23, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p23))) <= 0.89,
+      c1_p3_d5_02_cr7 = (sum(mod3_mod3_1_mod3_1_1_p24, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_1_p24))) <= 0.89,
+      c1_p3_d5_02_cr8 = (sum(mod3_mod3_1_mod3_1_2_p25, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_2_p25))) <= 0.89,
+      c1_p3_d5_02_cr9 = (sum(mod3_mod3_1_mod3_1_2_p26, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_2_p26))) <= 0.89,
+      c1_p3_d5_02_cr10 = (sum(mod3_mod3_1_mod3_1_2_p27, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_2_p27))) <= 0.89,
+      c1_p3_d5_02_cr11 = (sum(mod3_mod3_1_mod3_1_2_p28, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_2_p28))) <= 0.89,
+      c1_p3_d5_02_cr12 = (sum(mod3_mod3_1_mod3_1_2_p29, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_2_p29))) <= 0.89,
+      c1_p3_d5_02_cr13 = (sum(mod3_mod3_1_mod3_1_2_p30, na.rm = T)/sum(!is.na(mod3_mod3_1_mod3_1_2_p30))) <= 0.89,
       c1_p3_d5_03_cr1 = sum(mod3_mod3_2_p32, na.rm = T)/sum(mod3_mod3_2_p31, na.rm = T) <= 0.89,
-      c1_p3_d5_04_cr1 = (sum(mod4_mod4_1_p33)/n()) <= 0.89,
+      c1_p3_d5_04_cr1 = (sum(mod4_mod4_1_p33, na.rm = T)/sum(!is.na(mod4_mod4_1_p33))) <= 0.89,
       c1_p3_d5_05_cr1 = sum(mod4_mod4_2_p39, na.rm = T)/sum(mod4_mod4_2_p37, na.rm = T) <= 0.89,
-      c1_p3_d5_05_cr2 = (sum(mod4_mod4_1_p35)/n()) <= 0.89,
-      c1_p3_d5_06_cr1 = (sum(mod4_mod4_3_p40)/n()) <= 0.89,
-      c1_p3_d5_06_cr2 = (sum(mod4_mod4_3_p41)/n()) <= 0.89,
+      c1_p3_d5_05_cr2 = (sum(mod4_mod4_1_p35, na.rm = T)/sum(!is.na(mod4_mod4_1_p35))) <= 0.89,
+      c1_p3_d5_06_cr1 = (sum(mod4_mod4_3_p40, na.rm = T)/sum(!is.na(mod4_mod4_3_p40))) <= 0.89,
+      c1_p3_d5_06_cr2 = (sum(mod4_mod4_3_p41, na.rm = T)/sum(!is.na(mod4_mod4_3_p41))) <= 0.89,
       c1_p3_d5_07_cr1 = sum(mod4_mod4_4_p43, na.rm = T)/sum(mod4_mod4_4_p42, na.rm = T) <= 0.89
     )
   
@@ -648,35 +660,35 @@ calculo_criterios <- function() {
   # P3_3: Estándares (base_CO_esta)
   Ind_p3_3 <- preparar_base(base_CO_esta, "mod1_gp1_p1") %>% 
     summarise(
-      c1_p3_d7_01_cr1 = (sum(mod2_mod2_1_p6)/n()) <= 0.89,
-      c1_p3_d7_01_cr2 = (sum(mod2_mod2_1_p7)/n()) <= 0.89,
-      c1_p3_d7_01_cr3 = (sum(mod2_mod2_1_p8)/n()) <= 0.89,
-      c1_p3_d7_01_cr4 = (sum(mod2_mod2_1_p9)/n()) <= 0.89,
-      c1_p3_d7_01_cr5 = (sum(mod2_mod2_1_p10)/n()) <= 0.89,
-      c1_p3_d7_01_cr6 = (sum(mod2_mod2_1_p11)/n()) <= 0.89,
-      c1_p3_d7_01_cr7 = (sum(mod2_mod2_1_p12)/n()) <= 0.89,
-      c1_p3_d7_02_cr1 = (sum(mod2_mod2_2_p13)/n()) > 10, # Cumple si es mayor que 10
-      c1_p3_d7_03_cr1 = (sum(mod3_p14)/n()) <= 0.89,
-      c1_p3_d7_03_cr2 = (sum(mod3_p15)/n()) <= 0.89,
-      c1_p3_d7_03_cr3 = (sum(mod3_p16)/n()) <= 0.89,
-      c1_p3_d7_04_cr1 = (sum(mod4_mod4_1_mod4_1_1_p17)/n()) <= 0.89,
-      c1_p3_d7_04_cr2 = (sum(mod4_mod4_1_mod4_1_1_p18)/n()) <= 0.89,
-      c1_p3_d7_04_cr3 = (sum(mod4_mod4_1_mod4_1_1_p19)/n()) <= 0.89,
-      c1_p3_d7_04_cr4 = (sum(mod4_mod4_1_mod4_1_1_p20)/n()) <= 0.89,
-      c1_p3_d7_04_cr5 = (sum(mod4_mod4_1_mod4_1_1_p21)/n()) <= 0.89,
-      c1_p3_d7_04_cr6 = (sum(mod4_mod4_1_mod4_1_1_p22)/n()) <= 0.89,
-      c1_p3_d7_04_cr7 = (sum(mod4_mod4_1_mod4_1_1_p23)/n()) <= 0.89,
-      c1_p3_d7_04_cr8 = (sum(mod4_mod4_1_mod4_1_2_p24)/n()) <= 0.89,
-      c1_p3_d7_04_cr9 = (sum(mod4_mod4_1_mod4_1_2_p25)/n()) <= 0.89,
-      c1_p3_d7_04_cr10 = (sum(mod4_mod4_1_mod4_1_2_p26)/n()) <= 0.89,
-      c1_p3_d7_04_cr11 = (sum(mod4_mod4_1_mod4_1_2_p27)/n()) <= 0.89,
-      c1_p3_d7_04_cr12 = (sum(mod4_mod4_1_mod4_1_2_p28)/n()) <= 0.89,
-      c1_p3_d7_04_cr13 = (sum(mod4_mod4_1_mod4_1_2_p29)/n()) <= 0.89,
-      c1_p3_d7_04_cr14 = (sum(mod4_mod4_1_mod4_1_2_p30)/n()) <= 0.89,
-      c1_p3_d7_04_cr15 = (sum(mod4_mod4_1_mod4_1_2_p31)/n()) <= 0.89,
-      c1_p3_d7_05_cr1 = (sum(as.numeric(mod4_mod4_2_p36))/n()) > 15, # Cumple si es mayor que 15
-      c1_p3_d7_06_cr1 = (sum(mod5_mod5_1_p39)/n()) <= 0.89,
-      c1_p3_d7_06_cr2 = (sum(mod5_mod5_1_p40)/n()) <= 0.89
+      c1_p3_d7_01_cr1 = (sum(mod2_mod2_1_p6, na.rm = T)/sum(!is.na(mod2_mod2_1_p6))) <= 0.89,
+      c1_p3_d7_01_cr2 = (sum(mod2_mod2_1_p7, na.rm = T)/sum(!is.na(mod2_mod2_1_p7))) <= 0.89,
+      c1_p3_d7_01_cr3 = (sum(mod2_mod2_1_p8, na.rm = T)/sum(!is.na(mod2_mod2_1_p8))) <= 0.89,
+      c1_p3_d7_01_cr4 = (sum(mod2_mod2_1_p9, na.rm = T)/sum(!is.na(mod2_mod2_1_p9))) <= 0.89,
+      c1_p3_d7_01_cr5 = (sum(mod2_mod2_1_p10, na.rm = T)/sum(!is.na(mod2_mod2_1_p10))) <= 0.89,
+      c1_p3_d7_01_cr6 = (sum(mod2_mod2_1_p11, na.rm = T)/sum(!is.na(mod2_mod2_1_p11))) <= 0.89,
+      c1_p3_d7_01_cr7 = (sum(mod2_mod2_1_p12, na.rm = T)/sum(!is.na(mod2_mod2_1_p12))) <= 0.89,
+      c1_p3_d7_02_cr1 = (sum(mod2_mod2_2_p13, na.rm = T)/sum(!is.na(mod2_mod2_2_p13))) > 10,
+      c1_p3_d7_03_cr1 = (sum(mod3_p14, na.rm = T)/sum(!is.na(mod3_p14))) <= 0.89,
+      c1_p3_d7_03_cr2 = (sum(mod3_p15, na.rm = T)/sum(!is.na(mod3_p15))) <= 0.89,
+      c1_p3_d7_03_cr3 = (sum(mod3_p16, na.rm = T)/sum(!is.na(mod3_p16))) <= 0.89,
+      c1_p3_d7_04_cr1 = (sum(mod4_mod4_1_mod4_1_1_p17, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p17))) <= 0.89,
+      c1_p3_d7_04_cr2 = (sum(mod4_mod4_1_mod4_1_1_p18, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p18))) <= 0.89,
+      c1_p3_d7_04_cr3 = (sum(mod4_mod4_1_mod4_1_1_p19, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p19))) <= 0.89,
+      c1_p3_d7_04_cr4 = (sum(mod4_mod4_1_mod4_1_1_p20, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p20))) <= 0.89,
+      c1_p3_d7_04_cr5 = (sum(mod4_mod4_1_mod4_1_1_p21, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p21))) <= 0.89,
+      c1_p3_d7_04_cr6 = (sum(mod4_mod4_1_mod4_1_1_p22, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p22))) <= 0.89,
+      c1_p3_d7_04_cr7 = (sum(mod4_mod4_1_mod4_1_1_p23, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_1_p23))) <= 0.89,
+      c1_p3_d7_04_cr8 = (sum(mod4_mod4_1_mod4_1_2_p24, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p24))) <= 0.89,
+      c1_p3_d7_04_cr9 = (sum(mod4_mod4_1_mod4_1_2_p25, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p25))) <= 0.89,
+      c1_p3_d7_04_cr10 = (sum(mod4_mod4_1_mod4_1_2_p26, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p26))) <= 0.89,
+      c1_p3_d7_04_cr11 = (sum(mod4_mod4_1_mod4_1_2_p27, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p27))) <= 0.89,
+      c1_p3_d7_04_cr12 = (sum(mod4_mod4_1_mod4_1_2_p28, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p28))) <= 0.89,
+      c1_p3_d7_04_cr13 = (sum(mod4_mod4_1_mod4_1_2_p29, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p29))) <= 0.89,
+      c1_p3_d7_04_cr14 = (sum(mod4_mod4_1_mod4_1_2_p30, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p30))) <= 0.89,
+      c1_p3_d7_04_cr15 = (sum(mod4_mod4_1_mod4_1_2_p31, na.rm = T)/sum(!is.na(mod4_mod4_1_mod4_1_2_p31))) <= 0.89,
+      c1_p3_d7_05_cr1 = (sum(as.numeric(mod4_mod4_2_p36), na.rm = T)/sum(!is.na(mod4_mod4_2_p36))) > 15,
+      c1_p3_d7_06_cr1 = (sum(mod5_mod5_1_p39, na.rm = T)/sum(!is.na(mod5_mod5_1_p39))) <= 0.89,
+      c1_p3_d7_06_cr2 = (sum(mod5_mod5_1_p40, na.rm = T)/sum(!is.na(mod5_mod5_1_p40))) <= 0.89
     )
   
   # P3_4: Telefónico (base_CO_tele)
@@ -684,52 +696,52 @@ calculo_criterios <- function() {
     summarise(
       c1_p3_d7_07_cr1 = sum(as.numeric(mod2_mod2_1_p8) == 1, na.rm = T)/sum(!is.na(mod2_mod2_1_p8)) <= 0.89,
       c1_p3_d7_08_cr1 = sum(as.numeric(mod2_mod2_1_p9) == 1, na.rm = T)/sum(!is.na(mod2_mod2_1_p9)) <= 0.89,
-      c1_p3_d7_09_cr1 = (sum(mod2_mod2_1_p10)/n()) <= 0.89,
-      c1_p3_d7_09_cr2 = (sum(mod2_mod2_1_p11)/n()) <= 0.89,
-      c1_p3_d7_09_cr3 = (sum(mod2_mod2_1_p12)/n()) <= 0.89,
+      c1_p3_d7_09_cr1 = (sum(mod2_mod2_1_p10, na.rm = T)/sum(!is.na(mod2_mod2_1_p10))) <= 0.89,
+      c1_p3_d7_09_cr2 = (sum(mod2_mod2_1_p11, na.rm = T)/sum(!is.na(mod2_mod2_1_p11))) <= 0.89,
+      c1_p3_d7_09_cr3 = (sum(mod2_mod2_1_p12, na.rm = T)/sum(!is.na(mod2_mod2_1_p12))) <= 0.89,
       c1_p3_d7_10_cr1 = sum(as.numeric(mod2_mod2_2_p13) == 1, na.rm = T)/sum(!is.na(mod2_mod2_2_p13)) <= 0.89,
-      c1_p3_d7_11_cr1 = (sum(mod2_mod2_2_p14)/n()) <= 0.89,
-      c1_p3_d7_11_cr2 = (sum(mod2_mod2_2_p15)/n()) <= 0.89,
-      c1_p3_d7_11_cr3 = (sum(mod2_mod2_2_p16)/n()) <= 0.89,
-      c1_p3_d7_11_cr4 = (sum(mod2_mod2_2_p17)/n()) <= 0.89,
-      c1_p3_d7_12_cr1 = (sum(mod2_mod2_3_p18)/n()) <= 0.89,
-      c1_p3_d7_12_cr2 = (sum(mod2_mod2_3_p19)/n()) <= 0.89,
-      c1_p3_d7_12_cr3 = (sum(mod2_mod2_3_p20)/n()) <= 0.89,
-      c1_p3_d7_12_cr4 = (sum(mod2_mod2_3_p21)/n()) <= 0.89,
-      c1_p3_d7_12_cr5 = (sum(mod2_mod2_3_p22)/n()) <= 0.89,
-      c1_p3_d7_12_cr6 = (sum(mod2_mod2_3_p23)/n()) <= 0.89,
-      c1_p3_d7_12_cr7 = (sum(mod2_mod2_3_p24)/n()) <= 0.89,
-      c1_p3_d7_12_cr8 = (sum(mod2_mod2_3_gp25_p25)/n()) <= 0.89,
-      c1_p3_d7_12_cr9 = (sum(mod2_mod2_3_p26)/n()) <= 0.89,
-      c1_p3_d7_13_cr1 = (sum(mod2_mod2_4_p27)/n()) <= 0.89,
-      c1_p3_d7_13_cr2 = (sum(mod2_mod2_4_p28)/n()) <= 0.89,
-      c1_p3_d7_13_cr3 = (sum(mod2_mod2_4_p29)/n()) <= 0.89
+      c1_p3_d7_11_cr1 = (sum(mod2_mod2_2_p14, na.rm = T)/sum(!is.na(mod2_mod2_2_p14))) <= 0.89,
+      c1_p3_d7_11_cr2 = (sum(mod2_mod2_2_p15, na.rm = T)/sum(!is.na(mod2_mod2_2_p15))) <= 0.89,
+      c1_p3_d7_11_cr3 = (sum(mod2_mod2_2_p16, na.rm = T)/sum(!is.na(mod2_mod2_2_p16))) <= 0.89,
+      c1_p3_d7_11_cr4 = (sum(mod2_mod2_2_p17, na.rm = T)/sum(!is.na(mod2_mod2_2_p17))) <= 0.89,
+      c1_p3_d7_12_cr1 = (sum(mod2_mod2_3_p18, na.rm = T)/sum(!is.na(mod2_mod2_3_p18))) <= 0.89,
+      c1_p3_d7_12_cr2 = (sum(mod2_mod2_3_p19, na.rm = T)/sum(!is.na(mod2_mod2_3_p19))) <= 0.89,
+      c1_p3_d7_12_cr3 = (sum(mod2_mod2_3_p20, na.rm = T)/sum(!is.na(mod2_mod2_3_p20))) <= 0.89,
+      c1_p3_d7_12_cr4 = (sum(mod2_mod2_3_p21, na.rm = T)/sum(!is.na(mod2_mod2_3_p21))) <= 0.89,
+      c1_p3_d7_12_cr5 = (sum(mod2_mod2_3_p22, na.rm = T)/sum(!is.na(mod2_mod2_3_p22))) <= 0.89,
+      c1_p3_d7_12_cr6 = (sum(mod2_mod2_3_p23, na.rm = T)/sum(!is.na(mod2_mod2_3_p23))) <= 0.89,
+      c1_p3_d7_12_cr7 = (sum(mod2_mod2_3_p24, na.rm = T)/sum(!is.na(mod2_mod2_3_p24))) <= 0.89,
+      c1_p3_d7_12_cr8 = (sum(mod2_mod2_3_gp25_p25, na.rm = T)/sum(!is.na(mod2_mod2_3_gp25_p25))) <= 0.89,
+      c1_p3_d7_12_cr9 = (sum(mod2_mod2_3_p26, na.rm = T)/sum(!is.na(mod2_mod2_3_p26))) <= 0.89,
+      c1_p3_d7_13_cr1 = (sum(mod2_mod2_4_p27, na.rm = T)/sum(!is.na(mod2_mod2_4_p27))) <= 0.89,
+      c1_p3_d7_13_cr2 = (sum(mod2_mod2_4_p28, na.rm = T)/sum(!is.na(mod2_mod2_4_p28))) <= 0.89,
+      c1_p3_d7_13_cr3 = (sum(mod2_mod2_4_p29, na.rm = T)/sum(!is.na(mod2_mod2_4_p29))) <= 0.89
     )
   
   # P3_5: Virtual (base_CO_virt)
   Ind_p3_5 <- preparar_base(base_CO_virt, "mod1_gp1_p1") %>% 
     summarise(
-      c1_p3_d7_14_cr1 = (sum(mod2_mod2_1_p5)/n()) <= 0.89,
-      c1_p3_d7_14_cr2 = (sum(mod2_mod2_1_p6)/n()) <= 0.89,
-      c1_p3_d7_14_cr3 = (sum(mod2_mod2_1_p7)/n()) <= 0.89,
-      c1_p3_d7_14_cr4 = (sum(mod2_mod2_1_p8)/n()) <= 0.89,
-      c1_p3_d7_14_cr5 = (sum(mod2_mod2_1_p9)/n()) <= 0.89,
-      c1_p3_d7_14_cr6 = (sum(mod2_mod2_1_p10)/n()) <= 0.89,
-      c1_p3_d7_14_cr7 = (sum(mod2_mod2_1_p11)/n()) <= 0.89,
-      c1_p3_d7_15_cr1 = (sum(mod2_mod2_2_mod2_2_1_p12)/n()) <= 0.89,
-      c1_p3_d7_15_cr2 = (sum(mod2_mod2_2_mod2_2_1_gp12_p13)/n()) <= 0.89,
-      c1_p3_d7_15_cr3 = (sum(mod2_mod2_2_mod2_2_1_gp12_p14)/n()) <= 0.89,
-      c1_p3_d7_15_cr4 = (sum(mod2_mod2_2_mod2_2_1_gp12_p15)/n()) <= 0.89,
-      c1_p3_d7_15_cr5 = (sum(mod2_mod2_2_mod2_2_1_gp12_p16)/n()) <= 0.89,
-      c1_p3_d7_15_cr6 = (sum(mod2_mod2_2_mod2_2_2_p17)/n()) <= 0.89,
-      c1_p3_d7_15_cr7 = (sum(mod2_mod2_2_mod2_2_2_p18)/n()) <= 0.89,
-      c1_p3_d7_15_cr8 = (sum(mod2_mod2_2_mod2_2_2_p19)/n()) <= 0.89,
-      c1_p3_d7_15_cr9 = (sum(mod2_mod2_2_mod2_2_2_p20)/n()) <= 0.89,
-      c1_p3_d7_15_cr10 = (sum(mod2_mod2_2_mod2_2_2_p21)/n()) <= 0.89,
-      c1_p3_d7_15_cr11 = (sum(mod2_mod2_2_mod2_2_2_p22)/n()) <= 0.89,
-      c1_p3_d7_16_cr1 = (sum(mod2_mod2_3_p23)/n()) <= 0.89,
-      c1_p3_d7_16_cr2 = (sum(mod2_mod2_3_p24)/n()) <= 0.89,
-      c1_p3_d7_16_cr3 = (sum(mod2_mod2_3_p25)/n()) <= 0.89
+      c1_p3_d7_14_cr1 = (sum(mod2_mod2_1_p5, na.rm = T)/sum(!is.na(mod2_mod2_1_p5))) <= 0.89,
+      c1_p3_d7_14_cr2 = (sum(mod2_mod2_1_p6, na.rm = T)/sum(!is.na(mod2_mod2_1_p6))) <= 0.89,
+      c1_p3_d7_14_cr3 = (sum(mod2_mod2_1_p7, na.rm = T)/sum(!is.na(mod2_mod2_1_p7))) <= 0.89,
+      c1_p3_d7_14_cr4 = (sum(mod2_mod2_1_p8, na.rm = T)/sum(!is.na(mod2_mod2_1_p8))) <= 0.89,
+      c1_p3_d7_14_cr5 = (sum(mod2_mod2_1_p9, na.rm = T)/sum(!is.na(mod2_mod2_1_p9))) <= 0.89,
+      c1_p3_d7_14_cr6 = (sum(mod2_mod2_1_p10, na.rm = T)/sum(!is.na(mod2_mod2_1_p10))) <= 0.89,
+      c1_p3_d7_14_cr7 = (sum(mod2_mod2_1_p11, na.rm = T)/sum(!is.na(mod2_mod2_1_p11))) <= 0.89,
+      c1_p3_d7_15_cr1 = (sum(mod2_mod2_2_mod2_2_1_p12, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_1_p12))) <= 0.89,
+      c1_p3_d7_15_cr2 = (sum(mod2_mod2_2_mod2_2_1_gp12_p13, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_1_gp12_p13))) <= 0.89,
+      c1_p3_d7_15_cr3 = (sum(mod2_mod2_2_mod2_2_1_gp12_p14, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_1_gp12_p14))) <= 0.89,
+      c1_p3_d7_15_cr4 = (sum(mod2_mod2_2_mod2_2_1_gp12_p15, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_1_gp12_p15))) <= 0.89,
+      c1_p3_d7_15_cr5 = (sum(mod2_mod2_2_mod2_2_1_gp12_p16, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_1_gp12_p16))) <= 0.89,
+      c1_p3_d7_15_cr6 = (sum(mod2_mod2_2_mod2_2_2_p17, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_2_p17))) <= 0.89,
+      c1_p3_d7_15_cr7 = (sum(mod2_mod2_2_mod2_2_2_p18, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_2_p18))) <= 0.89,
+      c1_p3_d7_15_cr8 = (sum(mod2_mod2_2_mod2_2_2_p19, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_2_p19))) <= 0.89,
+      c1_p3_d7_15_cr9 = (sum(mod2_mod2_2_mod2_2_2_p20, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_2_p20))) <= 0.89,
+      c1_p3_d7_15_cr10 = (sum(mod2_mod2_2_mod2_2_2_p21, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_2_p21))) <= 0.89,
+      c1_p3_d7_15_cr11 = (sum(mod2_mod2_2_mod2_2_2_p22, na.rm = T)/sum(!is.na(mod2_mod2_2_mod2_2_2_p22))) <= 0.89,
+      c1_p3_d7_16_cr1 = (sum(mod2_mod2_3_p23, na.rm = T)/sum(!is.na(mod2_mod2_3_p23))) <= 0.89,
+      c1_p3_d7_16_cr2 = (sum(mod2_mod2_3_p24, na.rm = T)/sum(!is.na(mod2_mod2_3_p24))) <= 0.89,
+      c1_p3_d7_16_cr3 = (sum(mod2_mod2_3_p25, na.rm = T)/sum(!is.na(mod2_mod2_3_p25))) <= 0.89
     )
   
   #### Pilar 4: Percepción Ciudadana (base_encuesta)
