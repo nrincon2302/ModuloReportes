@@ -21,6 +21,7 @@ indice_dashboard_ui <- function(id, id_componente) {
   all_sectores  <- sort(df_sectores$Sector)
   all_entidades <- sort(df_entidades$Entidad)
   all_canales   <- obtener_canales()
+  canales_con_subcanal <- all_canales[all_canales != "Sin Canal"]
   
   end_year    <- as.integer(format(Sys.Date(), "%Y"))
   anios_fijos <- as.character(seq(2025, end_year))
@@ -97,8 +98,8 @@ indice_dashboard_ui <- function(id, id_componente) {
       conditionalPanel(
         condition = sprintf("input['%s'] == true", ns("filtro_canal_detalle")),
         selectInput(ns("filtro_canal_selector"), "Seleccione el canal:",
-                    choices = all_canales,
-                    selected = if (length(all_canales) > 0) all_canales[1] else NULL),
+                    choices = canales_con_subcanal,
+                    selected = if (length(canales_con_subcanal) > 0) canales_con_subcanal[1] else NULL),
         div(style = "margin-bottom: 5px; font-size: 0.9em;",
             actionLink(ns("subcanal_select_all"), "Todos"), " | ",
             actionLink(ns("subcanal_deselect_all"), "Ninguno")),
