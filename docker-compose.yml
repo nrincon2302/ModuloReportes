@@ -4,8 +4,7 @@ services:
     image: nginx:alpine
     container_name: shiny-proxy
     ports:
-      - "4000:443"   # ahora HTTPS
-      - "4005:80"    # opcional (redirect)
+      - "4000:443"    # HTTPS
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
@@ -22,27 +21,30 @@ services:
     build: .
     image: modulo-reportes
     env_file: .env
-    ports:
-      - "4001:3838"
+    volumes:
+      - shared-outputs:/srv/shiny-server/outputs
     restart: unless-stopped
 
   shiny2:
     image: modulo-reportes
     env_file: .env
-    ports:
-      - "4002:3838"
+    volumes:
+      - shared-outputs:/srv/shiny-server/outputs
     restart: unless-stopped
 
   shiny3:
     image: modulo-reportes
     env_file: .env
-    ports:
-      - "4003:3838"
+    volumes:
+      - shared-outputs:/srv/shiny-server/outputs
     restart: unless-stopped
 
   shiny4:
     image: modulo-reportes
     env_file: .env
-    ports:
-      - "4004:3838"
+    volumes:
+      - shared-outputs:/srv/shiny-server/outputs
     restart: unless-stopped
+
+volumes:
+  shared-outputs:

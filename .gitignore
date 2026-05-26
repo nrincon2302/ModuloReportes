@@ -6,3 +6,4 @@
 .Renviron.site
 .DS_Store
 rsconnect/
+certs/
