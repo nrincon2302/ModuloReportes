@@ -50,7 +50,8 @@ vars_capa <- c("mod2_p8","mod2_p9","mod2_p10","mod2_p11","mod2_p12","mod2_p13",
                "mod3_mod3_1_mod3_1_1_p21","mod3_mod3_1_mod3_1_1_p22","mod3_mod3_1_mod3_1_1_p23",
                "mod3_mod3_1_mod3_1_1_p24","mod3_mod3_1_mod3_1_2_p25","mod3_mod3_1_mod3_1_2_p26",
                "mod3_mod3_1_mod3_1_2_p27","mod3_mod3_1_mod3_1_2_p28","mod3_mod3_1_mod3_1_2_p29",
-               "mod3_mod3_1_mod3_1_2_p30","mod4_mod4_1_p33","mod4_mod4_1_p34","mod4_mod4_1_p35")
+               "mod3_mod3_1_mod3_1_2_p30","mod4_mod4_1_p33","mod4_mod4_1_p34","mod4_mod4_1_p35",
+               "mod4_mod4_3_p40","mod4_mod4_3_p41")
 
 vars_esta <- c("mod2_mod2_1_p6","mod2_mod2_1_p7","mod2_mod2_1_p8","mod2_mod2_1_p9",
                "mod2_mod2_1_p10","mod2_mod2_1_p11","mod2_mod2_1_p12","mod3_p14",
@@ -61,7 +62,7 @@ vars_esta <- c("mod2_mod2_1_p6","mod2_mod2_1_p7","mod2_mod2_1_p8","mod2_mod2_1_p
                "mod4_mod4_1_mod4_1_2_p28","mod4_mod4_1_mod4_1_2_p29","mod4_mod4_1_mod4_1_2_p30",
                "mod4_mod4_1_mod4_1_2_p31","mod5_mod5_1_p39","mod5_mod5_1_p40")
 
-vars_tele <- c("mod2_mod2_1_p10","mod2_mod2_1_p11","mod2_mod2_2_p14","mod2_mod2_2_p15",
+vars_tele <- c("mod2_mod2_1_p9","mod2_mod2_1_p10","mod2_mod2_1_p11","mod2_mod2_2_p14","mod2_mod2_2_p15",
                "mod2_mod2_2_p16","mod2_mod2_2_p17","mod2_mod2_3_p18","mod2_mod2_3_p19",
                "mod2_mod2_3_p20","mod2_mod2_3_p21","mod2_mod2_3_p22","mod2_mod2_3_p23",
                "mod2_mod2_3_p24","mod2_mod2_3_gp25_p25","mod2_mod2_3_p26","mod2_mod2_4_p27")
@@ -81,7 +82,7 @@ base_CO_tele <- recodificar_interes(base_CO_tele, vars_tele)
 base_CO_virt <- recodificar_interes(base_CO_virt, vars_virt)
 
 # Recodificaciones binarias simples (1 o 0)
-binarias_tele <- c("mod2_mod2_1_p12", "mod2_mod2_4_p28", "mod2_mod2_4_p29")
+binarias_tele <- c("mod2_mod2_1_p12", "mod2_mod2_2_p13", "mod2_mod2_4_p28", "mod2_mod2_4_p29")
 base_CO_tele[binarias_tele] <- lapply(base_CO_tele[binarias_tele], \(x) ifelse(x == "1", 1, 0))
 
 binarias_virt <- c("mod2_mod2_2_mod2_2_1_gp12_p13", "mod2_mod2_3_p23", "mod2_mod2_3_p24", "mod2_mod2_3_p25")
