@@ -263,7 +263,7 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       ponderador = num_obs / sum(num_obs)
     ) %>% ponderar_indicadores()
   
-  Ind_p3_2 <- preparar_base(df_habilidades, "Id_Sector", "id_entidad") %>% 
+  Ind_p3_2_pre <- preparar_base(df_habilidades, "Id_Sector", "id_entidad") %>% 
     summarise(
       # Totales por tipo (para ponderaciones)
       total_tecnicas = sum(num_capacitados_tecnicas, na.rm = TRUE),
@@ -279,7 +279,9 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       ponderador_tecnicas = total_tecnicas / sum(total_tecnicas),
       ponderador_socio    = total_socio     / sum(total_socio)
     ) %>%
-    select(-total_tecnicas, -total_socio) %>% 
+    select(-total_tecnicas, -total_socio)
+  
+  Ind_p3_2_colapsed <- Ind_p3_2_pre %>% 
     summarise(
       Nivel = 0,
       c1_p3_d6_01 = sum(c1_p3_d6_01 * ponderador_tecnicas) / sum(ponderador_tecnicas),
@@ -287,6 +289,8 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       ponderador_tecnicas = 1,
       ponderador_socio = 1
     )
+  
+  Ind_p3_2 <- bind_rows(Ind_p3_2_pre, Ind_p3_2_colapsed)
   
   # P3_3: Estándares (base_CO_esta)
   Ind_p3_3 <- preparar_base(base_CO_esta, "mod1_gp1_c1", "mod1_gp1_p1") %>% 
