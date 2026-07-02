@@ -3,8 +3,8 @@ proxy:
   port: 3838
   authentication: none
 
-  # 1. Redirigir a los usuarios directamente a la app al entrar a la raíz (/)
-  landing-page: SingleApp
+  # 1. Redirigir a los usuarios directamente a la app al entrar a la raíz
+  landing-page: /app/modulo-reportes
   # 2. Ocultar la barra azul superior de ShinyProxy para que parezca una app nativa
   hide-navbar: true
 
