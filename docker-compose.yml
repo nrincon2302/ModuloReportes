@@ -4,47 +4,41 @@ services:
     image: nginx:alpine
     container_name: shiny-proxy
     ports:
-      - "4000:443"    # HTTPS
+      - "4000:443"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./certs:/etc/nginx/certs:ro
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
+    networks:
+      - shiny-net
     depends_on:
-      - shiny1
-      - shiny2
-      - shiny3
-      - shiny4
+      - shinyproxy
     restart: unless-stopped
 
-  shiny1:
+  app-image:
     build: .
-    image: modulo-reportes
-    env_file: .env
-    volumes:
-      - shared-outputs:/srv/shiny-server/outputs
-    restart: unless-stopped
+    image: modulo-reportes:latest
+    command: ["true"]
+    restart: "no"
 
-  shiny2:
-    image: modulo-reportes
-    env_file: .env
+  shinyproxy:
+    image: openanalytics/shinyproxy:3.2.4
+    container_name: shinyproxy
+    user: root
     volumes:
-      - shared-outputs:/srv/shiny-server/outputs
-    restart: unless-stopped
-
-  shiny3:
-    image: modulo-reportes
-    env_file: .env
-    volumes:
-      - shared-outputs:/srv/shiny-server/outputs
-    restart: unless-stopped
-
-  shiny4:
-    image: modulo-reportes
-    env_file: .env
-    volumes:
-      - shared-outputs:/srv/shiny-server/outputs
+      - ./application.yml:/opt/shinyproxy/application.yml:ro
+      - ./.env:/opt/shinyproxy/.env:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - shiny-net
+    depends_on:
+      app-image:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
   shared-outputs:
+    name: shared-outputs
+
+networks:
+  shiny-net:
+    name: shiny-net

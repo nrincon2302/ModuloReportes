@@ -1,0 +1,30 @@
+proxy:
+  title: Portal de Reportes Shiny
+  port: 3838
+  authentication: none
+
+  # 1. Redirigir a los usuarios directamente a la app al entrar a la raíz (/)
+  landing-page: SingleApp
+  # 2. Ocultar la barra azul superior de ShinyProxy para que parezca una app nativa
+  hide-navbar: true
+
+  docker:
+    internal-networking: true
+    container-network: shiny-net
+
+  specs:
+    - id: modulo-reportes
+      display-name: Módulo de Reportes de Gestión
+      description: Aplicación principal de análisis y descarga de reportes
+      container-image: modulo-reportes:latest
+      container-network: shiny-net
+      port: 3838
+      container-volumes: ["shared-outputs:/srv/shiny-server/outputs"]
+      container-env-file: /opt/shinyproxy/.env
+
+server:
+  forward-headers-strategy: native
+  
+logging:
+  file:
+    name: shinyproxy.log
