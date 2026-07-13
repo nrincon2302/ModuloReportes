@@ -34,6 +34,103 @@ generar_df_vacio <- function(fid) {
   )[1, ]   # <- 1 filas
 }
 
+# Regla de negocio PQRSD: la opcion "No aplica" no es cumplimiento ni
+# incumplimiento. Se convierte en NA para excluirla del denominador.
+pqrds_normalizar_respuesta <- function(x) {
+  y <- trimws(as.character(x))
+  y <- iconv(y, to = "ASCII//TRANSLIT", sub = "")
+  y <- tolower(y)
+  y <- gsub("[._-]+", " ", y)
+  y <- gsub("\\s+", " ", y)
+  y <- trimws(y)
+  y[is.na(x) | y %in% c("", "na", "n/a", "n a", "no aplica", "noaplica", "no aplicable")] <- NA_character_
+  y
+}
+
+pqrds_es_no_evaluable <- function(x) {
+  is.na(pqrds_normalizar_respuesta(x))
+}
+
+pqrds_respuesta_binaria <- function(x, no_evaluable = NULL) {
+  y <- pqrds_normalizar_respuesta(x)
+  out <- rep(NA_real_, length(y))
+  out[y %in% c("cumple", "0")] <- 1
+  out[y %in% c("no cumple", "incumple", "1")] <- 0
+
+  if (!is.null(no_evaluable)) {
+    out[no_evaluable %in% TRUE] <- NA_real_
+  }
+
+  out
+}
+
+pqrds_no_evaluable_oportunidad <- function(df) {
+  no_eval <- rep(FALSE, nrow(df))
+
+  if ("mod2_mod2_1_gp19_p19" %in% names(df)) {
+    no_eval <- no_eval | trimws(as.character(df$mod2_mod2_1_gp19_p19)) %in% c("7", "7.0")
+  }
+
+  if ("mod2_mod2_1_v26" %in% names(df)) {
+    no_eval <- no_eval | pqrds_es_no_evaluable(df$mod2_mod2_1_v26)
+  }
+
+  no_eval
+}
+
+pqrds_contar_respuestas <- function(x, no_evaluable = NULL) {
+  v <- pqrds_respuesta_binaria(x, no_evaluable)
+  cumple <- sum(v == 1, na.rm = TRUE)
+  incumple <- sum(v == 0, na.rm = TRUE)
+  denom <- cumple + incumple
+  list(
+    cumple = cumple,
+    incumple = incumple,
+    denom = denom,
+    pct_c = if (denom > 0L) cumple / denom else NA_real_,
+    pct_i = if (denom > 0L) incumple / denom else NA_real_
+  )
+}
+
+pqrds_contar_etiquetas <- function(x) {
+  y <- pqrds_normalizar_respuesta(x)
+  cumple <- sum(y == "cumple", na.rm = TRUE)
+  incumple <- sum(!is.na(y) & y != "cumple", na.rm = TRUE)
+  denom <- cumple + incumple
+  list(
+    cumple = cumple,
+    incumple = incumple,
+    denom = denom,
+    pct_c = if (denom > 0L) cumple / denom else NA_real_,
+    pct_i = if (denom > 0L) incumple / denom else NA_real_
+  )
+}
+
+pqrds_criterio_tiene_incumplimiento <- function(x, no_evaluable = NULL) {
+  conteo <- pqrds_contar_respuestas(x, no_evaluable)
+  if (conteo$denom == 0L) return(NA)
+  conteo$incumple > 0L
+}
+
+pqrds_pct_cumplimiento_compuesto <- function(df, cols) {
+  cols <- intersect(cols, names(df))
+  if (length(cols) == 0L || nrow(df) == 0L) return(NA_real_)
+
+  mat <- as.data.frame(lapply(cols, function(col) {
+    no_eval <- if (col == "mod2_mod2_1_v16") pqrds_no_evaluable_oportunidad(df) else NULL
+    pqrds_respuesta_binaria(df[[col]], no_eval)
+  }))
+  names(mat) <- cols
+
+  evaluable <- rowSums(!is.na(mat)) > 0L
+  if (!any(evaluable)) return(NA_real_)
+
+  # Una PQRSD cumple si todos sus criterios evaluables cumplen; los NA
+  # corresponden a "No aplica" y no penalizan ni suman al denominador.
+  cumple_fila <- rowSums(mat[evaluable, , drop = FALSE] == 0, na.rm = TRUE) == 0L
+  mean(cumple_fila) * 100
+}
+
 cols_base_CO_capa <- c(
   "StartRecord", "EndRecord", "Date", "Time", "unnamed_col_5",
   "mod1_gp1_p0", "mod1_gp1_p1", "mod1_gp1_p1_1", "mod1_gp1_c1",

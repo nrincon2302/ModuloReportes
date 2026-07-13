@@ -10,6 +10,7 @@ library(promises)
 library(future)
 
 # Cargar módulos
+source("modules/mod_filtros.R")
 source("modules/mod_navigation.R")
 source("modules/mod_indice_dashboard.R")
 source("modules/mod_dimension_buttons.R")
@@ -367,13 +368,31 @@ server <- function(input, output, session) {
     })
     
     # ===========================================
+    # PANEL DE FILTROS GLOBAL (transversal a toda la app)
+    # ===========================================
+    filtros_global <- filtros_server("filtros_global", id_componente_actual, signals)
+
+    output$filtros_global_wrapper <- renderUI({
+      filtros_ui("filtros_global")
+    })
+
+    observe({
+      if (active_sub_tab() == "mejora") {
+        shinyjs::hide("filtros_global_wrapper")
+      } else {
+        shinyjs::show("filtros_global_wrapper")
+      }
+    })
+    
+    # ===========================================
     # MÓDULO PRINCIPAL DE DASHBOARD
     # ===========================================
-    filtros_modulo <- indice_dashboard_server(
+    indice_dashboard_server(
       "indice_dash",
       id_componente_actual,
       rv_bg,
-      signals
+      signals,
+      filtros_global
     )
     
     # ===========================================
@@ -453,11 +472,12 @@ server <- function(input, output, session) {
       manejadores_registrados(c(registrados, clave))
     }
     
-    # Registrar para el módulo principal
-    registrar_manejador(filtros_modulo, "indice")
-    
-    filtros_dimension_preview <- reactiveVal(NULL)
-    filtros_dimension_view    <- reactiveVal(NULL)
+    # Único registro: el panel de filtros es ahora global, por lo que
+    # basta con un solo manejador para toda la aplicación.
+    registrar_manejador(filtros_global, "global")
+
+    dimension_preview_montado <- reactiveVal(FALSE)
+    dimension_view_montado    <- reactiveVal(FALSE)
     
     # ===========================================
     # JOB SUBCANALES (se lanza solo desde lanzar_recalculo_completo,
@@ -555,30 +575,27 @@ server <- function(input, output, session) {
       shinyjs::addClass("nav_prestacion", "active")
       shinyjs::removeClass("nav_satisfaccion", "active")
     })
-    
-    observeEvent(list(active_sub_tab(), active_dimension()), {
-      sub_tab <- active_sub_tab()
-      if (sub_tab %in% c("indice","mejora")) return()
-      if (!is.null(rv_startup$general)) {
-        rv_bg$general           <- rv_startup$general
-        rv_bg$historico         <- rv_startup$historico
-        rv_bg$canal             <- rv_startup$canal
-        rv_bg$ranking_entidades <- rv_startup$ranking_entidades
-        rv_bg$subcanal          <- NULL
-        general_ready_ts(Sys.time()); historico_ready_ts(Sys.time()); canal_ready_ts(Sys.time())
-        subcanal_ready_ts(NULL)
-        filtros_confirmados(modifyList(filtros_confirmados(), list(
-          nivel = "Distrito", ids = NULL, anios = NULL, meses = NULL,
-          canal = NULL, subcanal = NULL
-        )))
-      }
-    }, ignoreInit = TRUE)
-    
+
     # ===========================================
     # RENDERIZADO PRINCIPAL
     # ===========================================
     output$main_content_wrapper <- renderUI({
-      div(class = "white-box", uiOutput("main_content"))
+      div(
+        class = "white-box",
+        uiOutput("main_content"),
+        div(
+          class = "visualization-container",
+          div(
+            class = "panels-column",
+            uiOutput("filtros_global_wrapper"),
+            uiOutput("filtros_local_wrapper")
+          ),
+          div(
+            class = "plot-column",
+            uiOutput("plot_area_wrapper")
+          )
+        )
+      )
     })
     
     observeEvent(general_ready_ts(), {
@@ -607,10 +624,7 @@ server <- function(input, output, session) {
         if (id == "indice" || (i == length(pilar_keys) - 1 && pilar_keys[i + 1] == "mejora"))
           botones_lista[[length(botones_lista) + 1]] <- div(class = "button-separator")
       }
-      tagList(
-        div(class = "top-buttons-container", botones_lista),
-        uiOutput("dynamic_content_area")
-      )
+      div(class = "top-buttons-container", botones_lista)
     })
     
     observe({
@@ -628,20 +642,6 @@ server <- function(input, output, session) {
       shinyjs::addClass(paste0("sub_btn_", active_sub_tab()), "active")
     })
     
-    # ===========================================
-    # CONTENIDO DINÁMICO
-    # ===========================================
-    output$dynamic_content_area <- renderUI({
-      sub_tab <- active_sub_tab()
-      if (sub_tab == "indice") {
-        indice_dashboard_ui("indice_dash", id_componente_actual())
-      } else if (sub_tab == "mejora") {
-        acciones_mejora_ui("acciones_mejora")
-      } else {
-        render_pilar_view(sub_tab)
-      }
-    })
-    
     id_pilar_actual <- reactive({
       sub_tab <- active_sub_tab()
       id_comp <- id_componente_actual()
@@ -654,20 +654,56 @@ server <- function(input, output, session) {
       return(NULL)
     })
     
-    render_pilar_view <- function(pilar_key) {
-      id_pil  <- id_pilar_actual()
-      id_comp <- id_componente_actual()
-      if (!exists("df_indicadores") || nrow(df_indicadores) == 0) return(div("Cargando estructura..."))
-      dimensiones <- df_indicadores %>%
-        filter(Id_Componente == id_comp, Id_Pilar == id_pil, Id_Dimension != 0) %>%
-        select(Id_Dimension, Dimensión) %>% distinct() %>% arrange(Id_Dimension)
-      if (nrow(dimensiones) == 0) return(div("No hay dimensiones disponibles"))
-      dim_list <- setNames(dimensiones$Dimensión, as.character(dimensiones$Id_Dimension))
-      tagList(
-        dimension_buttons_ui("dim_buttons", dim_list),
-        uiOutput("dimension_content")
-      )
-    }
+    # ===========================================
+    # CONTROLES PROPIOS DE CADA PESTAÑA
+    # (se ubican EN LA MISMA COLUMNA IZQUIERDA que el panel de filtros
+    # comunes -- "panels-column" -- justo debajo de este, formando un solo
+    # totem visual: filtros_global_wrapper arriba, *_local_ui abajo)
+    # ===========================================
+    output$filtros_local_wrapper <- renderUI({
+      sub_tab <- active_sub_tab()
+      if (sub_tab == "indice") {
+        indice_dashboard_local_ui("indice_dash")
+      } else if (sub_tab == "mejora") {
+        acciones_mejora_local_ui("acciones_mejora")
+      } else if (is.null(active_dimension())) {
+        dimension_preview_local_ui("dimension_preview")
+      } else {
+        dimension_view_local_ui("dimension_view")
+      }
+    })
+    
+    # ===========================================
+    # ÁREA DE GRÁFICAS / TABLA DE CADA PESTAÑA
+    # (columna derecha -- "plot-column" -- usa las clases .plot-area /
+    # .plot-row ya definidas en ui.R, que colapsan a 1 columna en mobile)
+    # ===========================================
+    output$plot_area_wrapper <- renderUI({
+      sub_tab <- active_sub_tab()
+      if (sub_tab == "indice") {
+        indice_dashboard_plot_ui("indice_dash")
+      } else if (sub_tab == "mejora") {
+        acciones_mejora_plot_ui("acciones_mejora")
+      } else {
+        id_pil  <- id_pilar_actual()
+        id_comp <- id_componente_actual()
+        dim_buttons <- NULL
+        if (!is.null(id_pil) && exists("df_indicadores")) {
+          dimensiones <- df_indicadores %>%
+            filter(Id_Componente == id_comp, Id_Pilar == id_pil, Id_Dimension != 0) %>%
+            select(Id_Dimension, Dimensión) %>% distinct() %>% arrange(Id_Dimension)
+          if (nrow(dimensiones) > 0) {
+            dim_list <- setNames(dimensiones$Dimensión, as.character(dimensiones$Id_Dimension))
+            dim_buttons <- dimension_buttons_ui("dim_buttons", dim_list)
+          }
+        }
+        tagList(
+          dim_buttons,
+          if (is.null(active_dimension())) dimension_preview_plot_ui("dimension_preview")
+          else dimension_view_plot_ui("dimension_view")
+        )
+      }
+    })
     
     observe({
       sub_tab <- active_sub_tab()
@@ -685,26 +721,21 @@ server <- function(input, output, session) {
       }
     })
     
-    output$dimension_content <- renderUI({
-      if (is.null(active_dimension())) dimension_preview_ui("dimension_preview")
-      else dimension_view_ui("dimension_view")
-    })
     
     observe({
       sub_tab <- active_sub_tab()
       id_pil  <- id_pilar_actual()
       if (!sub_tab %in% c("indice","mejora") && is.null(active_dimension()) && !is.null(id_pil)) {
-        if (is.null(filtros_dimension_preview())) {
-          filtros_dimension_preview(
-            dimension_preview_server(
-              "dimension_preview",
-              id_componente = id_componente_actual,
-              id_pilar      = id_pilar_actual,
-              rv_bg         = rv_bg,
-              signals       = signals
-            )
+        if (!isTRUE(dimension_preview_montado())) {
+          dimension_preview_server(
+            "dimension_preview",
+            id_componente = id_componente_actual,
+            id_pilar      = id_pilar_actual,
+            rv_bg         = rv_bg,
+            signals       = signals,
+            filtros       = filtros_global
           )
-          registrar_manejador(filtros_dimension_preview(), "dimension_preview")
+          dimension_preview_montado(TRUE)
         }
       }
     })
@@ -712,18 +743,17 @@ server <- function(input, output, session) {
     observe({
       id_pil <- id_pilar_actual()
       if (!is.null(active_dimension()) && !is.null(id_pil)) {
-        if (is.null(filtros_dimension_view())) {
-          filtros_dimension_view(
-            dimension_view_server(
-              "dimension_view",
-              id_componente = id_componente_actual,
-              id_pilar      = id_pilar_actual,
-              id_dimension  = active_dimension,
-              rv_bg,
-              signals
-            )
+        if (!isTRUE(dimension_view_montado())) {
+          dimension_view_server(
+            "dimension_view",
+            id_componente = id_componente_actual,
+            id_pilar      = id_pilar_actual,
+            id_dimension  = active_dimension,
+            rv_bg,
+            signals,
+            filtros = filtros_global
           )
-          registrar_manejador(filtros_dimension_view(), "dimension_view")
+          dimension_view_montado(TRUE)
         }
       }
     })

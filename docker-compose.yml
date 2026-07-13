@@ -14,12 +14,6 @@ services:
       - shinyproxy
     restart: unless-stopped
 
-  app-image:
-    build: .
-    image: modulo-reportes:latest
-    command: ["true"]
-    restart: "no"
-
   shinyproxy:
     image: openanalytics/shinyproxy:3.2.4
     container_name: shinyproxy
@@ -30,9 +24,6 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - shiny-net
-    depends_on:
-      app-image:
-        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:

@@ -199,9 +199,11 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
   Ind_p1_2 <- preparar_base(base_pqrds, "mod1_gv4_p7", "mod1_gv4_p8") %>% 
     summarise(
       num_obs = n(),
-      c1_p1_d1_02 = sum(ifelse(mod2_mod2_1_v18 %in% c("0") & mod2_mod2_1_v19 %in% c("0") &
-                                 mod2_mod2_1_v20 %in% c("0") & mod2_mod2_1_v16 %in% c("0") &
-                                 mod2_mod2_1_v21 %in% c("0"), 1, 0)) / n() * 100
+      c1_p1_d1_02 = pqrds_pct_cumplimiento_compuesto(
+        cur_data(),
+        c("mod2_mod2_1_v18", "mod2_mod2_1_v19", "mod2_mod2_1_v20",
+          "mod2_mod2_1_v16", "mod2_mod2_1_v21")
+      )
     ) %>% ungroup() %>% 
     mutate(
       ponderador = num_obs / sum(num_obs)
@@ -592,7 +594,10 @@ calculo_criterios <- function() {
       c1_p1_d1_02_cr1 = sum(ifelse(mod2_mod2_1_v18 %in% c("0"), 1, 0))/n() != 1,
       c1_p1_d1_02_cr2 = sum(ifelse(mod2_mod2_1_v19 %in% c("0"), 1, 0))/n() != 1,
       c1_p1_d1_02_cr3 = sum(ifelse(mod2_mod2_1_v20 %in% c("0"), 1, 0))/n() != 1,
-      c1_p1_d1_02_cr4 = sum(ifelse(mod2_mod2_1_v16 %in% c("0"), 1, 0))/n() != 1,
+      c1_p1_d1_02_cr4 = pqrds_criterio_tiene_incumplimiento(
+        mod2_mod2_1_v16,
+        pqrds_no_evaluable_oportunidad(cur_data())
+      ),
       c1_p1_d1_02_cr5 = sum(ifelse(mod2_mod2_1_v21 %in% c("0"), 1, 0))/n() != 1
     )
   

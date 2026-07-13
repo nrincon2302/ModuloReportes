@@ -319,8 +319,22 @@ fluidPage(
       .visualization-container {
         display: flex;
         gap: var(--spacing-lg);
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         min-height: 0;
+        align-items: flex-start;
+      }
+
+      .panels-column {
+        display: flex;
+        flex-direction: column;
+        gap: var(--spacing-lg);
+        width: 320px;
+        flex-shrink: 0;
+      }
+
+      .plot-column {
+        flex: 1;
+        min-width: 0;
       }
       
       .filter-panel {
@@ -333,6 +347,56 @@ fluidPage(
         height: fit-content;
         position: sticky;
         top: 0;
+      }
+
+      @media (max-width: 1024px) {
+        .visualization-container {
+          flex-direction: column;
+          flex-wrap: wrap;
+        }
+
+        .panels-column {
+          width: 100%;
+          max-width: none;
+        }
+
+        .filter-panel {
+          max-width: none;
+          position: static;
+        }
+
+        .plot-column {
+          width: 100%;
+        }
+      }
+
+      @media (max-width: 768px) {
+        .white-box {
+          padding: var(--spacing-md);
+        }
+
+        .top-buttons-container {
+          justify-content: flex-start;
+        }
+
+        .top-button {
+          min-width: 100%;
+          min-height: auto;
+          padding: 10px 12px;
+        }
+
+        .plot-area,
+        .plot-row {
+          grid-template-columns: 1fr;
+        }
+
+        .dimension-buttons-container {
+          justify-content: flex-start;
+        }
+
+        .dimension-button {
+          min-width: 100%;
+        }
       }
       
       .plot-area {
@@ -367,6 +431,7 @@ fluidPage(
         padding: var(--spacing-md);
         box-shadow: 0 2px 5px rgba(0,0,0,0.05);
         min-height: 280px;
+        min-width: 0; /* Fix grid overflow: los grid items no se encogen por defecto */
         display: flex;
         flex-direction: column;
       }

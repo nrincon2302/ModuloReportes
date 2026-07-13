@@ -1,213 +1,35 @@
 library(shinycssloaders)
 library(scales)
+source("modules/mod_filtros.R")
 
 # ============================================
 # 1. PREVIEW DE PILAR (Ranking de dimensiones)
 # ============================================
 
-dimension_preview_ui <- function(id) {
+dimension_preview_local_ui <- function(id) {
+  NULL
+}
+
+dimension_preview_plot_ui <- function(id) {
   ns <- NS(id)
-  
-  # Estáticos
-  all_sectores <- if(exists("df_sectores")) sort(df_sectores$Sector) else character(0)
-  # Allowed years from 2025 to current year (keep in sync with periodos availability)
-  end_year <- as.integer(format(Sys.Date(), "%Y"))
-  anios_fijos <- as.character(seq(2025, end_year))
-  meses_fijos <- sprintf("%02d", 1:12)
-  names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
-  
+
   div(
-    class = "visualization-container",
-    div(
-      class = "filter-panel",
-      
-      # --- FILTRO DE FECHAS ---
-      tags$h4("Periodo de Análisis", style = "color: #225495; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
-      fluidRow(
-        column(6, pickerInput(ns("filtro_anio"), "Año", choices = anios_fijos, multiple = TRUE, 
-                              options = list(`actions-box`=TRUE, `none-selected-text`="Todos"))),
-        column(6, uiOutput(ns("mes_selector_ui")))
-      ),
-      hr(),
-      
-      # --- NIVEL DE CONSULTA ---
-      tags$h4("Nivel de Consulta", style = "color: #225495; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
-      radioButtons(ns("filtro_nivel"), NULL, choices = c("Distrito", "Sector", "Entidad"), selected = "Distrito"),
-      
-      conditionalPanel(
-        condition = sprintf("input['%s'] == 'Sector'", ns("filtro_nivel")),
-        div(style="margin-bottom: 5px; font-size: 0.9em;", 
-            actionLink(ns("sector_select_all"), "Todos"), " | ", 
-            actionLink(ns("sector_deselect_all"), "Ninguno")),
-        div(class="scrollable-checkbox-group", 
-            checkboxGroupInput(ns("sector_checks"), NULL, choices = all_sectores, selected = all_sectores))
-      ),
-      
-      conditionalPanel(
-        condition = sprintf("input['%s'] == 'Entidad'", ns("filtro_nivel")),
-        div(style="margin-bottom: 5px; font-size: 0.9em;",
-            actionLink(ns("entidad_select_all"), "Todos"), " | ",
-            actionLink(ns("entidad_deselect_all"), "Ninguno")),
-        div(class="scrollable-checkbox-group",
-            uiOutput(ns("entidad_checks_ui")))
-      ),
-      
-      hr(),
-      
-      # --- BOTÓN UNIFICADO ---
-      actionButton(ns("btn_aplicar_filtros"), "Aplicar Filtros",
-                   icon = icon("filter"),
-                   class = "btn-primary btn-sm",
-                   style = "width: 100%; margin-bottom: 15px; font-weight: bold;"),
-      
-    ),
-    
-    div(
-      class = "plot-area",
-      div(class = "plot-box plot-box-full",
-          withSpinner(highchartOutput(ns("plot_ranking_dimensiones"), height = "500px"), 
-                      type=4, color="#225495")
-      )
+    class = "plot-area",
+    div(class = "plot-box plot-box-full",
+        withSpinner(highchartOutput(ns("plot_ranking_dimensiones"), height = "500px"), 
+                    type=4, color="#225495")
     )
   )
 }
 
-dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals) {
+dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals, filtros) {
   moduleServer(id, function(input, output, session) {
-    
+
     # ============================================
-    # 1. VALIDACIÓN Y COMUNICACIÓN DE FILTROS
+    # 1. FILTROS: vienen del modulo global (mod_filtros.R)
     # ============================================
-    
-    # Dynamic month selector (per-year pickers)
-    output$mes_selector_ui <- renderUI({
-      req(input$filtro_anio)
-      años <- input$filtro_anio
-      meses_fijos <- sprintf("%02d", 1:12)
-      names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
-      
-      if (length(años) == 0) return(NULL)
-      if (length(años) == 1) {
-        pickerInput(session$ns("filtro_mes"), "Mes",
-                    choices = meses_fijos,
-                    multiple = TRUE,
-                    options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"),
-                    selected = meses_fijos)
-      } else {
-        tagList(lapply(años, function(a) {
-          pickerInput(session$ns(paste0("filtro_mes_", a)), label = a,
-                      choices = meses_fijos,
-                      multiple = TRUE,
-                      options = list(`actions-box` = TRUE, `none-selected-text`="Todos"),
-                      selected = meses_fijos)
-        }))
-      }
-    })
-    
-    # Retorno de filtros para el server principal
-    filtros_estado <- reactive({
-      list(
-        filtro_anio           = input$filtro_anio,
-        filtro_mes            = input$filtro_mes,
-        filtro_nivel          = input$filtro_nivel,
-        sector_checks         = input$sector_checks,
-        entidad_checks        = input$entidad_checks,
-        filtro_canal_detalle  = FALSE,   # preview no tiene panel de canal
-        filtro_canal_selector = NULL,
-        subcanales_checks     = NULL
-      )
-    })
-    
-    # Contador unificado
-    btn_click <- reactiveVal(0)
-    observeEvent(input$btn_aplicar_filtros, {
-      btn_click(btn_click() + 1)
-    })
-    
-    filtros_evento <- eventReactive(input$btn_aplicar_filtros, {
-      años_sel <- input$filtro_anio
-      filtro_periodos <- character(0)
-      if (!is.null(años_sel) && length(años_sel) > 0) {
-        if (length(años_sel) == 1) {
-          sel <- input$filtro_mes
-          if (is.null(sel) || length(sel) == 0) sel <- sprintf("%02d", 1:12)
-          filtro_periodos <- paste0(años_sel, "-", sprintf("%02d", as.integer(sel)))
-        } else {
-          meses_comb <- unlist(lapply(años_sel, function(a) {
-            sel <- input[[paste0('filtro_mes_', a)]]
-            if (is.null(sel) || length(sel) == 0) return(character(0))
-            paste0(a, "-", sprintf("%02d", as.integer(sel)))
-          }))
-          filtro_periodos <- meses_comb
-        }
-      } else {
-        filtro_periodos <- NULL
-      }
-      
-      list(
-        filtro_anio           = input$filtro_anio,
-        filtro_mes            = filtro_periodos,
-        filtro_nivel          = input$filtro_nivel,
-        sector_checks         = input$sector_checks,
-        entidad_checks        = input$entidad_checks,
-        filtro_canal_detalle  = FALSE,
-        filtro_canal_selector = NULL,
-        subcanales_checks     = NULL,
-        subcanal_ids          = NULL
-      )
-    }, ignoreNULL = FALSE)
-    
-    # ============================================
-    # 2. HELPERS UI DINÁMICOS
-    # ============================================
-    
-    entidades_disponibles <- reactive({
-      req(exists("df_entidades"))
-      if (input$filtro_nivel == "Entidad" && length(input$sector_checks) > 0) {
-        ids <- df_sectores %>% filter(Sector %in% input$sector_checks) %>% pull(Id_Sector)
-        df_entidades %>% filter(Id_Sector %in% ids) %>% pull(Entidad) %>% sort()
-      } else {
-        sort(df_entidades$Entidad)
-      }
-    })
-    
-    output$entidad_checks_ui <- renderUI({
-      ent <- entidades_disponibles()
-      seleccion_actual <- isolate(input$entidad_checks)
-      seleccion_filtrada <- if (is.null(seleccion_actual)) ent else seleccion_actual[seleccion_actual %in% ent]
-      checkboxGroupInput(session$ns("entidad_checks"), NULL, choices = ent, selected = seleccion_filtrada)
-    })
-    
-    # Botones de selección rápida
-    observeEvent(input$sector_select_all, { 
-      updateCheckboxGroupInput(session, "sector_checks", selected = sort(df_sectores$Sector)) 
-    })
-    observeEvent(input$sector_deselect_all, { 
-      updateCheckboxGroupInput(session, "sector_checks", selected = character(0)) 
-    })
-    observeEvent(input$entidad_select_all, {
-      updateCheckboxGroupInput(session, "entidad_checks", selected = entidades_disponibles())
-    })
-    observeEvent(input$entidad_deselect_all, {
-      updateCheckboxGroupInput(session, "entidad_checks", selected = character(0))
-    })
-    # ============================================
-    # 3. IDS SELECCIONADOS
-    # ============================================
-    
-    ids_seleccionados <- reactive({
-      nivel <- input$filtro_nivel
-      if (nivel == "Distrito") return(NULL)
-      if (nivel == "Sector") {
-        req(input$sector_checks)
-        return(df_sectores %>% filter(Sector %in% input$sector_checks) %>% pull(Id_Sector))
-      }
-      if (nivel == "Entidad") {
-        req(input$entidad_checks)
-        return(df_entidades %>% filter(Entidad %in% input$entidad_checks) %>% pull(Id_Entidad))
-      }
-    })
+    filtros_evento    <- filtros$evento
+    ids_seleccionados <- filtros$ids_seleccionados
     
     # ============================================
     # 4. FUENTE DE DATOS
@@ -251,146 +73,52 @@ dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals
         hc_legend(enabled = FALSE)
     })
     
-    return(list(
-      estado      = filtros_estado,
-      evento      = filtros_evento,
-      btn_click   = btn_click,
-      nivel_click = btn_click   # alias esperado por server.R
-    ))
+    invisible(NULL)
   })
 }
 
 # ============================================
 # 2. VISTA DE DIMENSIÓN (Indicadores + Detalle)
 # ============================================
-dimension_view_ui <- function(id) {
+dimension_view_local_ui <- function(id) {
   ns <- NS(id)
-  
-  all_sectores <- if(exists("df_sectores")) sort(df_sectores$Sector) else character(0)
-  all_canales <- if (exists("df_canales_lista")) df_canales_lista$Canal else obtener_canales()
-  canales_con_subcanal <- all_canales[all_canales != "Sin Canal"]
-  end_year <- as.integer(format(Sys.Date(), "%Y"))
-  anios_fijos <- as.character(seq(2025, end_year))
-  meses_fijos <- sprintf("%02d", 1:12)
-  names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
-  
+
   div(
-    class = "visualization-container",
-    div(
-      class = "filter-panel",
-      
-      # --- FILTRO DE FECHAS ---
-      tags$h4("Periodo de Análisis", style = "color: #225495; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
-      fluidRow(
-        column(6, pickerInput(ns("filtro_anio"), "Año", choices = anios_fijos, multiple = TRUE, 
-                              options = list(`actions-box`=TRUE, `none-selected-text`="Todos"))),
-        column(6, uiOutput(ns("mes_selector_ui")))
-      ),
-      hr(),
-      
-      # --- NIVEL DE CONSULTA ---
-      tags$h4("Nivel de Consulta", style = "color: #225495; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
-      radioButtons(ns("filtro_nivel"), NULL, choices = c("Distrito", "Sector", "Entidad"), selected = "Distrito"),
-      
-      conditionalPanel(
-        condition = sprintf("input['%s'] == 'Sector'", ns("filtro_nivel")),
-        div(style="margin-bottom: 5px; font-size: 0.9em;", 
-            actionLink(ns("sector_select_all"), "Todos"), " | ", 
-            actionLink(ns("sector_deselect_all"), "Ninguno")),
-        div(class="scrollable-checkbox-group", 
-            checkboxGroupInput(ns("sector_checks"), NULL, choices = all_sectores, selected = all_sectores))
-      ),
-      
-      conditionalPanel(
-        condition = sprintf("input['%s'] == 'Entidad'", ns("filtro_nivel")),
-        div(style="margin-bottom: 5px; font-size: 0.9em;",
-            actionLink(ns("entidad_select_all"), "Todos"), " | ",
-            actionLink(ns("entidad_deselect_all"), "Ninguno")),
-        div(class="scrollable-checkbox-group",
-            uiOutput(ns("entidad_checks_ui")))
-      ),
-      
-      hr(),
-      
-      # --- FILTRO CANAL / SUBCANAL (filtro global) ---
-      tags$h4("Filtrar por Canal", style = "color: #225495; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
-      
-      # Canales disponibles (solo cuando NO hay detalle de subcanal)
-      conditionalPanel(
-        condition = sprintf("input['%s'] == false", ns("filtro_canal_detalle")),
-        div(style = "margin-bottom: 5px; font-size: 0.9em;",
-            actionLink(ns("canal_select_all"),   "Todos"), " | ",
-            actionLink(ns("canal_deselect_all"), "Ninguno")),
-        div(class = "scrollable-checkbox-group",
-            uiOutput(ns("canales_checks_ui")))
-      ),
-      
-      # Detalle por subcanal (opcional)
-      checkboxInput(ns("filtro_canal_detalle"),
-                    "Filtrar por subcanal (afecta todas las graficas)",
-                    value = FALSE),
-      
-      conditionalPanel(
-        condition = sprintf("input['%s'] == true", ns("filtro_canal_detalle")),
-        selectInput(ns("filtro_canal_selector"), "Seleccione el canal:",
-                    choices = canales_con_subcanal,
-                    selected = if (length(canales_con_subcanal) > 0) canales_con_subcanal[1] else NULL),
-        div(style = "margin-bottom: 5px; font-size: 0.9em;",
-            actionLink(ns("subcanal_select_all"), "Todos"), " | ",
-            actionLink(ns("subcanal_deselect_all"), "Ninguno")),
-        div(class = "scrollable-checkbox-group",
-            uiOutput(ns("subcanales_checks_ui")))
-      ),
-      
-      hr(),
-      
-      # --- BOTÓN UNIFICADO ---
-      actionButton(ns("btn_aplicar_filtros"), "Aplicar Filtros",
-                   icon = icon("filter"),
-                   class = "btn-primary btn-sm",
-                   style = "width: 100%; margin-bottom: 15px; font-weight: bold;"),
-      
-      hr(),
-      tags$h4("Seleccione el Indicador", style = "color: #225495; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
-      div(style="margin-bottom: 5px; font-size: 0.9em;",
-          actionLink(ns("indicador_select_all"), "Todos"), " | ",
-          actionLink(ns("indicador_deselect_all"), "Ninguno")),
-      div(class = "scrollable-checkbox-group",
-          uiOutput(ns("indicador_selector_ui"))),
-      
-      hr(),
-      
-      # --- ACCIONES ---
-      downloadButton(ns("descargar_reporte"), "Imprimir PDF", style = "width: 100%; margin-top: 10px;"),
-      
-      # --- DESCARGA EXCEL DETALLADO (solo para Gestión de Respuestas) ---
-      uiOutput(ns("excel_detallado_ui"))
-    ),
-    
-    div(
-      class = "plot-area",
-      # Ranking Indicadores
-      div(class = "plot-box plot-box-full",
-          highchartOutput(ns("plot_ranking_indicadores"), height = "400px")),
-      
-      # Periodo
-      div(class = "plot-box plot-box-full",
-          withSpinner(highchartOutput(ns("plot_desempeno_periodo"), height = "400px"),
-                      type=4, color="#225495")),
-      
-      # Canal
-      div(class = "plot-box plot-box-full",
-          withSpinner(highchartOutput(ns("plot_desempeno_canal"), height = "400px"),
-                      type=4, color="#225495"))
-    )
+    class = "filter-panel",
+    tags$h4("Seleccione el Indicador", style = "color: #225495; margin-top: 0; border-bottom: 1px solid #ddd; padding-bottom: 5px;"),
+    div(style="margin-bottom: 5px; font-size: 0.9em;",
+        actionLink(ns("indicador_select_all"), "Todos"), " | ",
+        actionLink(ns("indicador_deselect_all"), "Ninguno")),
+    div(class = "scrollable-checkbox-group",
+        uiOutput(ns("indicador_selector_ui"))),
+
+    hr(),
+    downloadButton(ns("descargar_reporte"), "Imprimir PDF", style = "width: 100%; margin-top: 10px;"),
+    uiOutput(ns("excel_detallado_ui"))
   )
 }
 
-dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_bg, signals) {
+dimension_view_plot_ui <- function(id) {
+  ns <- NS(id)
+
+  div(
+    class = "plot-area",
+    div(class = "plot-box plot-box-full",
+        highchartOutput(ns("plot_ranking_indicadores"), height = "400px")),
+    div(class = "plot-box plot-box-full",
+        withSpinner(highchartOutput(ns("plot_desempeno_periodo"), height = "400px"),
+                    type=4, color="#225495")),
+    div(class = "plot-box plot-box-full",
+        withSpinner(highchartOutput(ns("plot_desempeno_canal"), height = "400px"),
+                    type=4, color="#225495"))
+  )
+}
+
+dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_bg, signals, filtros) {
   moduleServer(id, function(input, output, session) {
-    
+
     color_azul <- "#225495"
-    
+
     placeholder_chart <- function(texto) {
       highchart() %>%
         hc_chart(backgroundColor = "transparent") %>%
@@ -401,108 +129,11 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         hc_yAxis(visible = FALSE) %>%
         hc_plotOptions(series = list(enableMouseTracking = FALSE, showInLegend = FALSE))
     }
-    
+
     # ============================================
-    # 1. VALIDACIÓN Y COMUNICACIÓN DE FILTROS
+    # 1. FILTROS: vienen del modulo global (mod_filtros.R)
     # ============================================
-    
-    # Dynamic month selector (per-year pickers)
-    output$mes_selector_ui <- renderUI({
-      req(input$filtro_anio)
-      años <- input$filtro_anio
-      meses_fijos <- sprintf("%02d", 1:12)
-      names(meses_fijos) <- c("Enero","Febrero","Marzo","Abril","Mayo","Junio",
-                              "Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre")
-      
-      if (length(años) == 0) return(NULL)
-      if (length(años) == 1) {
-        pickerInput(session$ns("filtro_mes"), "Mes",
-                    choices = meses_fijos,
-                    multiple = TRUE,
-                    options = list(`actions-box` = TRUE, `none-selected-text` = "Todos"),
-                    selected = meses_fijos)
-      } else {
-        tagList(lapply(años, function(a) {
-          pickerInput(session$ns(paste0("filtro_mes_", a)), label = a,
-                      choices = meses_fijos,
-                      multiple = TRUE,
-                      options = list(`actions-box` = TRUE, `none-selected-text`="Todos"),
-                      selected = meses_fijos)
-        }))
-      }
-    })
-    
-    filtros_estado <- reactive({
-      list(
-        filtro_anio           = input$filtro_anio,
-        filtro_mes            = input$filtro_mes,
-        filtro_nivel          = input$filtro_nivel,
-        sector_checks         = input$sector_checks,
-        entidad_checks        = input$entidad_checks,
-        canales_checks        = input$canales_checks,
-        filtro_canal_detalle  = input$filtro_canal_detalle,
-        filtro_canal_selector = input$filtro_canal_selector,
-        subcanales_checks     = input$subcanales_checks
-      )
-    })
-    
-    # Contador unificado — reemplaza btn_actualizar_click + btn_aplicar_nivel_click
-    btn_click <- reactiveVal(0)
-    observeEvent(input$btn_aplicar_filtros, {
-      btn_click(btn_click() + 1)
-    })
-    
-    filtros_evento <- eventReactive(input$btn_aplicar_filtros, {
-      años_sel <- input$filtro_anio
-      filtro_periodos <- character(0)
-      if (!is.null(años_sel) && length(años_sel) > 0) {
-        if (length(años_sel) == 1) {
-          sel <- input$filtro_mes
-          if (is.null(sel) || length(sel) == 0) sel <- sprintf("%02d", 1:12)
-          filtro_periodos <- paste0(años_sel, "-", sprintf("%02d", as.integer(sel)))
-        } else {
-          meses_comb <- unlist(lapply(años_sel, function(a) {
-            sel <- input[[paste0('filtro_mes_', a)]]
-            if (is.null(sel) || length(sel) == 0) return(character(0))
-            paste0(a, "-", sprintf("%02d", as.integer(sel)))
-          }))
-          filtro_periodos <- meses_comb
-        }
-      } else {
-        filtro_periodos <- NULL
-      }
-      
-      # Resolver IDs numéricos de subcanal desde los nombres seleccionados
-      subcanal_ids <- NULL
-      if (isTRUE(input$filtro_canal_detalle) &&
-          !is.null(input$filtro_canal_selector) &&
-          !is.null(input$subcanales_checks) &&
-          length(input$subcanales_checks) > 0 &&
-          exists("df_canales")) {
-        subcanal_ids <- df_canales %>%
-          filter(Canal  == input$filtro_canal_selector,
-                 Subcanal %in% input$subcanales_checks) %>%
-          pull(Id_Subcanal)
-      }
-      
-      # Canales seleccionados (solo activos cuando no hay detalle de subcanal)
-      canales_sel <- if (isTRUE(input$filtro_canal_detalle)) NULL else input$canales_checks
-      
-      list(
-        filtro_anio           = input$filtro_anio,
-        filtro_mes            = filtro_periodos,
-        filtro_nivel          = input$filtro_nivel,
-        sector_checks         = input$sector_checks,
-        entidad_checks        = input$entidad_checks,
-        canales_checks        = canales_sel,
-        filtro_canal_detalle  = input$filtro_canal_detalle,
-        filtro_canal_selector = input$filtro_canal_selector,
-        subcanales_checks     = input$subcanales_checks,
-        subcanal_ids          = subcanal_ids
-      )
-    }, ignoreNULL = FALSE)
-    
-    
+    filtros_evento <- filtros$evento
     output$excel_detallado_ui <- renderUI({
       req(id_componente(), id_pilar(), id_dimension())
       
@@ -519,10 +150,11 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
       if (id_componente() == 1 && id_pilar() == 1 && id_dimension() == 1) {
         # Crear reactive con periodos seleccionados
         periodos_seleccionados <- reactive({
-          req(input$filtro_anio, input$filtro_mes)
+          est <- filtros$estado()
+          req(est$filtro_anio, est$filtro_mes)
           
-          anios <- input$filtro_anio
-          meses <- input$filtro_mes
+          anios <- est$filtro_anio
+          meses <- est$filtro_mes
           
           # Generar combinaciones de año-mes en formato YYYY-MM
           periodos <- c()
@@ -535,43 +167,38 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
           return(periodos)
         })
         
-        descargar_excel_server("excel_detallado", periodos_seleccionados)
+        # Reactive con las entidades permitidas segun nivel/sector/entidad de
+        # los filtros comunes. NULL = sin restriccion (nivel "Distrito").
+        entidades_seleccionadas <- reactive({
+          est   <- filtros$estado()
+          nivel <- est$filtro_nivel
+          
+          if (is.null(nivel) || nivel == "Distrito") return(NULL)
+          
+          if (nivel == "Sector") {
+            req(est$sector_checks)
+            ids_sector <- df_sectores %>% filter(Sector %in% est$sector_checks) %>% pull(Id_Sector)
+            return(df_entidades %>% filter(Id_Sector %in% ids_sector) %>% pull(Id_Entidad))
+          }
+          
+          if (nivel == "Entidad") {
+            req(est$entidad_checks)
+            return(df_entidades %>% filter(Entidad %in% est$entidad_checks) %>% pull(Id_Entidad))
+          }
+          
+          NULL
+        })
+        
+        descargar_excel_server("excel_detallado", periodos_seleccionados, entidades_seleccionadas)
       }
     })
     
     # ============================================
     # 2. HELPERS UI DINÁMICOS
+    # (los de entidad/canal/subcanal ahora viven en mod_filtros.R;
+    #  aqui solo queda la seleccion de indicadores, propia de esta vista)
     # ============================================
-    
-    entidades_disponibles <- reactive({
-      req(exists("df_entidades"))
-      if (input$filtro_nivel == "Entidad" && length(input$sector_checks) > 0) {
-        ids <- df_sectores %>% filter(Sector %in% input$sector_checks) %>% pull(Id_Sector)
-        df_entidades %>% filter(Id_Sector %in% ids) %>% pull(Entidad) %>% sort()
-      } else {
-        sort(df_entidades$Entidad)
-      }
-    })
-    
-    output$entidad_checks_ui <- renderUI({
-      ent <- entidades_disponibles()
-      seleccion_actual <- isolate(input$entidad_checks)
-      seleccion_filtrada <- if (is.null(seleccion_actual)) ent else seleccion_actual[seleccion_actual %in% ent]
-      checkboxGroupInput(session$ns("entidad_checks"), NULL, choices = ent, selected = seleccion_filtrada)
-    })
-    
-    observeEvent(input$sector_select_all, { 
-      updateCheckboxGroupInput(session, "sector_checks", selected = sort(df_sectores$Sector)) 
-    })
-    observeEvent(input$sector_deselect_all, { 
-      updateCheckboxGroupInput(session, "sector_checks", selected = character(0)) 
-    })
-    observeEvent(input$entidad_select_all, { 
-      updateCheckboxGroupInput(session, "entidad_checks", selected = entidades_disponibles()) 
-    })
-    observeEvent(input$entidad_deselect_all, {
-      updateCheckboxGroupInput(session, "entidad_checks", selected = character(0))
-    })
+
     observeEvent(input$indicador_select_all, {
       indics <- indicadores_dimension()
       updateCheckboxGroupInput(session, "indicador_seleccionado", selected = as.character(indics$Id_Indicador))
@@ -579,48 +206,7 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
     observeEvent(input$indicador_deselect_all, {
       updateCheckboxGroupInput(session, "indicador_seleccionado", selected = character(0))
     })
-    observeEvent(input$subcanal_select_all, {
-      req(input$filtro_canal_selector)
-      subs <- obtener_subcanales(input$filtro_canal_selector)
-      updateCheckboxGroupInput(session, "subcanales_checks", selected = subs)
-    })
-    observeEvent(input$subcanal_deselect_all, { 
-      updateCheckboxGroupInput(session, "subcanales_checks", selected = character(0)) 
-    })
-    observeEvent(input$canal_select_all, {
-      canales <- tryCatch(obtener_canales(), error = function(e) character(0))
-      updateCheckboxGroupInput(session, "canales_checks", selected = canales)
-    })
-    observeEvent(input$canal_deselect_all, {
-      updateCheckboxGroupInput(session, "canales_checks", selected = character(0))
-    })
-    
-    output$canales_checks_ui <- renderUI({
-      req(signals$canal())
-      canales <- tryCatch(obtener_canales(), error = function(e) character(0))
-      if (length(canales) == 0) return(div("No hay canales disponibles"))
-      seleccion_actual   <- isolate(input$canales_checks)
-      seleccion_filtrada <- if (is.null(seleccion_actual)) canales else seleccion_actual[seleccion_actual %in% canales]
-      checkboxGroupInput(session$ns("canales_checks"), NULL, choices = canales, selected = seleccion_filtrada)
-    })
-    
-    # ============================================
-    # 4. IDS SELECCIONADOS
-    # ============================================
-    
-    ids_seleccionados <- reactive({
-      nivel <- input$filtro_nivel
-      if (nivel == "Distrito") return(NULL)
-      if (nivel == "Sector") {
-        req(input$sector_checks)
-        return(df_sectores %>% filter(Sector %in% input$sector_checks) %>% pull(Id_Sector))
-      }
-      if (nivel == "Entidad") {
-        req(input$entidad_checks)
-        return(df_entidades %>% filter(Entidad %in% input$entidad_checks) %>% pull(Id_Entidad))
-      }
-    })
-    
+
     # ============================================
     # 5. FUENTE DE DATOS
     # ============================================
@@ -720,22 +306,6 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         filter(Id_Indicador %in% ids_sel) %>%
         arrange(Id_Indicador) %>%
         pull(Indicador)
-    })
-    
-    # Subcanales disponibles (espera señal de canal)
-    output$subcanales_checks_ui <- renderUI({
-      req(input$filtro_canal_selector)
-      req(signals$canal())  # Esperar a que carguen los datos de canal
-      
-      subs <- tryCatch({
-        obtener_subcanales(input$filtro_canal_selector)
-      }, error = function(e) character(0))
-      
-      if(length(subs) == 0) return(div("No hay subcanales disponibles"))
-      
-      seleccion_actual <- isolate(input$subcanales_checks)
-      seleccion_filtrada <- if (is.null(seleccion_actual)) subs else seleccion_actual[seleccion_actual %in% subs]
-      checkboxGroupInput(session$ns("subcanales_checks"), NULL, choices = subs, selected = seleccion_filtrada)
     })
     
     # ============================================
@@ -1017,11 +587,12 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
           }
           
           # 4. Preparar Datos Filtrados (Canal/Subcanal/Periodo)
-          nivel          <- input$filtro_nivel
-          ver_detalle    <- isTRUE(input$filtro_canal_detalle)
-          canal_sel_pdf  <- if (ver_detalle) input$filtro_canal_selector else NULL
-          subcan_pdf     <- if (ver_detalle) input$subcanales_checks else NULL
-          canales_pdf    <- if (!ver_detalle) input$canales_checks else NULL
+          estado_filtros <- isolate(filtros$estado())
+          nivel          <- estado_filtros$filtro_nivel
+          ver_detalle    <- isTRUE(estado_filtros$filtro_canal_detalle)
+          canal_sel_pdf  <- if (ver_detalle) estado_filtros$filtro_canal_selector else NULL
+          subcan_pdf     <- if (ver_detalle) estado_filtros$subcanales_checks else NULL
+          canales_pdf    <- if (!ver_detalle) estado_filtros$canales_checks else NULL
           
           # A. Datos Canal / Subcanal
           datos_canal <- NULL
@@ -1093,9 +664,9 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
             pilar_nombre             = nombre_pilar_texto,
             dimension_nombre         = nombre_dimension_texto,
             indicador_seleccionado   = nombres_indicadores,
-            nivel_consulta           = input$filtro_nivel,
-            sectores_seleccionados   = if (!is.null(input$sector_checks)) paste(input$sector_checks, collapse = ", ") else "Todos",
-            entidades_seleccionadas  = if (!is.null(input$entidad_checks)) paste(input$entidad_checks, collapse = ", ") else "Todas",
+            nivel_consulta           = estado_filtros$filtro_nivel,
+            sectores_seleccionados   = if (!is.null(estado_filtros$sector_checks)) paste(estado_filtros$sector_checks, collapse = ", ") else "Todos",
+            entidades_seleccionadas  = if (!is.null(estado_filtros$entidad_checks)) paste(estado_filtros$entidad_checks, collapse = ", ") else "Todas",
             canales_seleccionados    = canales_pdf,
             canal_seleccionado       = canal_sel_pdf,
             subcanales_seleccionados = subcan_pdf,
@@ -1122,11 +693,6 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
       }
     )
     
-    return(list(
-      estado      = filtros_estado,
-      evento      = filtros_evento,
-      btn_click   = btn_click,
-      nivel_click = btn_click   # alias esperado por server.R
-    ))
+    invisible(NULL)
   })
 }

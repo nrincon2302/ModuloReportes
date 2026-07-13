@@ -25,6 +25,25 @@ library(dplyr)
   saveWorkbook(wb, file, overwrite = TRUE)
 }
 
+# Normaliza texto para comparaciones robustas (sin tildes, mayusculas, sin
+# espacios extra) — util para cruzar nombres de entidad entre fuentes que no
+# comparten un Id_Entidad comun (p.ej. sample_data).
+.normalizar_texto <- function(x) {
+  x <- iconv(x, to = "ASCII//TRANSLIT", sub = "")
+  x <- toupper(trimws(x))
+  x
+}
+
+# Dado un vector de Id_Entidad permitidos (o NULL = sin restriccion), retorna
+# los nombres de Entidad normalizados correspondientes, usando el catalogo
+# df_entidades. Si no hay restriccion, retorna NULL.
+.nombres_entidad_por_ids <- function(ids_entidad) {
+  if (is.null(ids_entidad) || length(ids_entidad) == 0) return(NULL)
+  if (!exists("df_entidades")) return(NULL)
+  nombres <- df_entidades %>% filter(Id_Entidad %in% ids_entidad) %>% pull(Entidad)
+  .normalizar_texto(nombres)
+}
+
 # Limpia un string para usarlo como nombre de hoja Excel (max 31 chars).
 .limpiar_nombre_hoja <- function(nombre, max_len = 31L) {
   nombre <- iconv(nombre, to = "ASCII//TRANSLIT", sub = "")
@@ -111,8 +130,8 @@ library(dplyr)
 .agregar_hoja_general_pqrsd <- function(wb, datos_pqrds, nombres_hojas, est) {
 
   CRITERIOS <- data.frame(
-    label = c("COHERENCIA", "CLARIDAD", "CALIDEZ", "OPORTUNIDAD", "MANEJO DEL SISTEMA"),
-    col_r = c("COHERENCIA", "CLARIDAD", "CALIDEZ", "OPORTUNIDAD", "MANEJO_SISTEMA"),
+    label = c("COHERENCIA", "CLARIDAD", "CALIDEZ", "GESTIÓN DE EVENTOS", "MANEJO DEL SISTEMA"),
+    col_r = c("COHERENCIA", "CLARIDAD", "CALIDEZ", "GESTIÓN DE EVENTOS", "MANEJO_SISTEMA"),
     stringsAsFactors = FALSE
   )
   n_crit <- nrow(CRITERIOS)
@@ -140,49 +159,57 @@ library(dplyr)
   FILA_META      <- FILA_IDX_INC  + 2L
 
   # ── Calcular todos los valores en R ─────────────────────────────────────────
-  n_cumple_col <- function(col_r, df) sum(df[[col_r]] == "Cumple", na.rm = TRUE)
-
-  # Peticiones con al menos un criterio incumplido (union, no suma)
+  # Peticiones con al menos un criterio incumplido (union, no suma). "No Aplica"
+  # se excluye del denominador y no cuenta como falla.
   falla_alguno <- function(df) {
     Reduce(`|`, lapply(CRITERIOS$col_r, function(cr) {
-      v <- df[[cr]] != "Cumple"; v[is.na(v)] <- FALSE; v
+      y <- pqrds_normalizar_respuesta(df[[cr]])
+      !is.na(y) & y != "cumple"
+    }))
+  }
+  evaluable_alguno <- function(df) {
+    Reduce(`|`, lapply(CRITERIOS$col_r, function(cr) {
+      !pqrds_es_no_evaluable(df[[cr]])
     }))
   }
 
   ent_data <- lapply(entidades_ord, function(ent) {
     df <- datos_pqrds[datos_pqrds$Entidad == ent, ]
     n  <- nrow(df)
+    n_evaluable <- sum(evaluable_alguno(df))
     crit <- lapply(seq_len(n_crit), function(k) {
-      nc <- n_cumple_col(CRITERIOS$col_r[k], df)
-      ni <- n - nc
-      list(cumple = nc, incumple = ni,
-           pct_c  = if (n > 0L) nc / n else NA_real_,
-           pct_i  = if (n > 0L) ni / n else NA_real_)
+      pqrds_contar_etiquetas(df[[CRITERIOS$col_r[k]]])
     })
-    list(n = n, criterios = crit, total_inc = sum(falla_alguno(df)))
+    list(n = n, n_evaluable = n_evaluable, criterios = crit, total_inc = sum(falla_alguno(df)))
   })
   names(ent_data) <- entidades_ord
 
-  muestra_total    <- nrow(datos_pqrds)
+  muestra_evaluable <- sum(evaluable_alguno(datos_pqrds))
   total_inc_global <- sum(falla_alguno(datos_pqrds))
 
   tot_crit <- lapply(seq_len(n_crit), function(k) {
-    nc <- n_cumple_col(CRITERIOS$col_r[k], datos_pqrds)
-    ni <- muestra_total - nc
-    list(cumple = nc, incumple = ni,
-         pct_c  = nc / muestra_total,
-         pct_i  = ni / muestra_total)
+    pqrds_contar_etiquetas(datos_pqrds[[CRITERIOS$col_r[k]]])
   })
 
-  # Indices de calidad (replica logica del Excel: G8 = 100% - Q5/F5)
+  # Indices de calidad: TotalInc / Muestra evaluable. Si todo es "No Aplica",
+  # se reporta sin datos evaluables en lugar de dividir por cero.
   META       <- 0.88
-  indice_cum <- 1 - total_inc_global / muestra_total
-  indice_inc <- 1 - indice_cum
-  calific    <- if (indice_cum < META) "Malo" else if (indice_cum < 1) "Bueno" else "Excelente"
+  indice_cum <- if (muestra_evaluable > 0L) 1 - total_inc_global / muestra_evaluable else NA_real_
+  indice_inc <- if (!is.na(indice_cum)) 1 - indice_cum else NA_real_
+  calific    <- if (is.na(indice_cum)) {
+    "Sin datos"
+  } else if (indice_cum < META) {
+    "Malo"
+  } else if (indice_cum < 1) {
+    "Bueno"
+  } else {
+    "Excelente"
+  }
   calific_hex <- switch(calific,
                         "Excelente" = "#1E8449",
                         "Bueno"     = "#28a745",
-                        "Malo"      = "#C0392B")
+                        "Malo"      = "#C0392B",
+                        "Sin datos" = "#6C757D")
 
   # ── Estilos propios de esta hoja ────────────────────────────────────────────
   hyperlink_style <- createStyle(
@@ -265,8 +292,8 @@ library(dplyr)
     mergeCells(wb, "General", cols = 1, rows = fc:fp)
     addStyle(wb, "General", hyperlink_style, rows = fc:fp, cols = 1, gridExpand = TRUE)
 
-    # Muestra: fusionada en 2 filas, sin porcentaje (igual al original F5:F6)
-    writeData(wb, "General", d$n, startRow = fc, startCol = 2)
+    # Muestra evaluable: excluye PQRSD donde todos los criterios son "No Aplica".
+    writeData(wb, "General", d$n_evaluable, startRow = fc, startCol = 2)
     mergeCells(wb, "General", cols = 2, rows = fc:fp)
     addStyle(wb, "General", est$data_cnt, rows = fc:fp, cols = 2, gridExpand = TRUE)
 
@@ -295,7 +322,7 @@ library(dplyr)
   addStyle(wb, "General", est$total_ent,
            rows = FILA_TOTAL_CNT:FILA_TOTAL_PCT, cols = 1, gridExpand = TRUE)
 
-  writeData(wb, "General", muestra_total, startRow = FILA_TOTAL_CNT, startCol = 2)
+  writeData(wb, "General", muestra_evaluable, startRow = FILA_TOTAL_CNT, startCol = 2)
   mergeCells(wb, "General", cols = 2, rows = FILA_TOTAL_CNT:FILA_TOTAL_PCT)
   addStyle(wb, "General", est$total_cnt,
            rows = FILA_TOTAL_CNT:FILA_TOTAL_PCT, cols = 2, gridExpand = TRUE)
@@ -446,7 +473,7 @@ descargar_excel_ui <- function(id) {
 # ============================================================================
 # SERVER
 # ============================================================================
-descargar_excel_server <- function(id, periodos_seleccionados = NULL) {
+descargar_excel_server <- function(id, periodos_seleccionados = NULL, entidades_seleccionadas = NULL) {
   moduleServer(id, function(input, output, session) {
 
     # ========================================================================
@@ -468,6 +495,11 @@ descargar_excel_server <- function(id, periodos_seleccionados = NULL) {
           if (is.null(periodos) || length(periodos) == 0)
             showNotification("No hay periodos seleccionados, descargando todos los datos",
                              type = "message", duration = 3, id = "excel_progress")
+
+          # Entidades/Sectores (filtros comunes)
+          ids_entidad <- NULL
+          if (!is.null(entidades_seleccionadas))
+            ids_entidad <- tryCatch(entidades_seleccionadas(), error = function(e) NULL)
 
           # Validaciones
           if (!exists("base_pqrds")) {
@@ -497,6 +529,8 @@ descargar_excel_server <- function(id, periodos_seleccionados = NULL) {
           datos <- base_pqrds
           if (!is.null(periodos) && length(periodos) > 0 && "periodo" %in% names(datos))
             datos <- datos %>% filter(periodo %in% periodos)
+          if (!is.null(ids_entidad) && length(ids_entidad) > 0)
+            datos <- datos %>% filter(as.numeric(mod1_gv4_p8) %in% ids_entidad)
 
           datos <- datos %>%
             mutate(mod1_gv4_p8 = as.numeric(mod1_gv4_p8)) %>%
@@ -513,7 +547,7 @@ descargar_excel_server <- function(id, periodos_seleccionados = NULL) {
                    COHERENCIA            = mod2_mod2_1_v22,
                    CLARIDAD              = mod2_mod2_1_v23,
                    CALIDEZ               = mod2_mod2_1_v24,
-                   OPORTUNIDAD           = mod2_mod2_1_v26,
+                   `GESTIÓN DE EVENTOS`  = mod2_mod2_1_v26,
                    MANEJO_SISTEMA        = mod2_mod2_1_v25) %>%
             filter(!is.na(Entidad))
 
@@ -593,6 +627,13 @@ descargar_excel_server <- function(id, periodos_seleccionados = NULL) {
             showNotification("No hay periodos seleccionados, descargando todos los datos",
                              type = "message", duration = 3, id = "excel_progress_ext")
 
+          # Entidades/Sectores (filtros comunes) — sample_data no tiene
+          # Id_Entidad, asi que se cruza por nombre normalizado.
+          ids_entidad <- NULL
+          if (!is.null(entidades_seleccionadas))
+            ids_entidad <- tryCatch(entidades_seleccionadas(), error = function(e) NULL)
+          nombres_entidad_permitidos <- .nombres_entidad_por_ids(ids_entidad)
+
           # Validaciones
           if (!exists("sample_data") || is.null(sample_data)) {
             showNotification("No se encontro la base de datos 'sample_data'",
@@ -613,6 +654,8 @@ descargar_excel_server <- function(id, periodos_seleccionados = NULL) {
           datos <- sample_data %>% filter(tipo_gestion == "Gestion extemporanea")
           if (!is.null(periodos) && length(periodos) > 0 && "periodo" %in% names(datos))
             datos <- datos %>% filter(periodo %in% periodos) %>% select(-periodo)
+          if (!is.null(nombres_entidad_permitidos))
+            datos <- datos %>% filter(.normalizar_texto(entidad) %in% nombres_entidad_permitidos)
 
           datos <- datos %>%
             mutate(

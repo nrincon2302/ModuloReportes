@@ -1,40 +1,40 @@
-acciones_mejora_ui <- function(id) {
+acciones_mejora_local_ui <- function(id) {
   ns <- NS(id)
-  
+
+  div(
+    class = "filter-panel",
+    tags$h4("Filtros de Análisis"),
+    tags$h4("Seleccione el Sector"),
+    selectInput(ns("filtro_sector"), NULL, choices = NULL),
+    tags$h4("Seleccione la Entidad"),
+    uiOutput(ns("selector_entidad")),
+    hr(),
+    downloadButton(
+      ns("descargar_reporte_mejora"),
+      "Imprimir PDF",
+      style = "width: 100%; margin-top: 10px;"
+    )
+  )
+}
+
+acciones_mejora_plot_ui <- function(id) {
+  ns <- NS(id)
+
+  div(
+    class = "plot-area",
+    div(
+      class = "plot-box plot-box-full",
+      style = "min-height: 500px;",
+      DTOutput(ns("tabla_acciones_mejora"))
+    )
+  )
+}
+
+acciones_mejora_ui <- function(id) {
   div(
     class = "visualization-container",
-    
-    # -------------------------- PANEL DE FILTROS --------------------------
-    div(
-      class = "filter-panel",
-      tags$h4("Filtros de Análisis"),
-      
-      # --- Filtro Sector ---
-      tags$h4("Seleccione el Sector"),
-      selectInput(ns("filtro_sector"), NULL, choices = NULL),
-      
-      # --- Filtro Entidad ---
-      tags$h4("Seleccione la Entidad"),
-      uiOutput(ns("selector_entidad")),
-      
-      hr(),
-      downloadButton(
-        ns("descargar_reporte_mejora"),
-        "Imprimir PDF",
-        style = "width: 100%; margin-top: 10px;"
-      ),
-      
-    ),
-    
-    # --------------------------- ÁREA DE TABLA -----------------------------
-    div(
-      class = "plot-area",
-      div(
-        class = "plot-box plot-box-full",
-        style = "min-height: 500px;",
-        DTOutput(ns("tabla_acciones_mejora"))
-      )
-    )
+    acciones_mejora_local_ui(id),
+    acciones_mejora_plot_ui(id)
   )
 }
 
