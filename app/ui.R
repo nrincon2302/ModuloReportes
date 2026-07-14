@@ -328,7 +328,7 @@ fluidPage(
         display: flex;
         flex-direction: column;
         gap: var(--spacing-lg);
-        width: 320px;
+        width: 280px;
         flex-shrink: 0;
       }
 
