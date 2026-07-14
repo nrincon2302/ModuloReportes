@@ -261,6 +261,7 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
           hc_plotOptions(column = list(depth = 40, shape = "cylinder",
                                        dataLabels = list(enabled = TRUE, format = "{y}%"))) %>%
           hc_title(text = "Evolución Histórica") %>%
+          hc_subtitle(text = "Si el Periodo de Análisis es 'Todos', solo se muestran los 4 meses más recientes") %>%
           hc_xAxis(title = list(text = "Periodo")) %>%
           hc_yAxis(min = 0, max = 100) %>%
           hc_legend(enabled = FALSE)
