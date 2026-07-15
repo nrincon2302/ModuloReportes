@@ -395,7 +395,10 @@ calculo_indicadores <- function(nivel, periodos = NULL, canal = NULL, subcanal =
       indice_p4 = rowMeans(select(., starts_with("indice_p4_")), na.rm = TRUE)
     ) %>%
     mutate(
-      indice_c2 = rowMeans(select(., c("indice_p4")), na.rm = TRUE)
+      indice_c2 = rowMeans(
+        select(., starts_with("c2_p4_d8_"), starts_with("c2_p4_d9_")),
+        na.rm = TRUE
+      )
     ) %>%
     select(
       Nivel, ponderador, indice_p4_d8, indice_p4_d9, indice_p4, indice_c2

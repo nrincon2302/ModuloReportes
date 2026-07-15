@@ -140,9 +140,11 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
         req(datos$general)
         id_comp      <- id_componente_reactive()
         pilares_data <- obtener_indices_pilares(datos$general, id_comp)
-        
-        if (is.null(pilares_data) || nrow(pilares_data) == 0 ||
-            all(is.na(pilares_data$Valor)))
+
+        if (!is.null(pilares_data) && nrow(pilares_data) > 0)
+          pilares_data <- pilares_data %>% filter(!is.na(Valor))
+
+        if (is.null(pilares_data) || nrow(pilares_data) == 0)
           return(.error_chart("No hay datos de pilares disponibles."))
         
         hchart(pilares_data %>% mutate(Valor = round(as.numeric(Valor), 1)),

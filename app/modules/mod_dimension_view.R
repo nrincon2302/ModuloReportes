@@ -48,9 +48,12 @@ dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals
       if (is.null(id_pil)) return(NULL)
       
       ranking <- obtener_indices_dimensiones(datos$general, id_pil)
-      
+
+      if (!is.null(ranking) && nrow(ranking) > 0)
+        ranking <- ranking %>% filter(!is.na(Valor))
+
       if (is.null(ranking) || nrow(ranking) == 0) {
-        return(highchart() %>% hc_title(text = "Sin datos de dimensiones"))
+        return(.error_chart("No hay datos de dimensiones disponibles."))
       }
       
       ranking_coloreado <- ranking %>%
@@ -344,7 +347,7 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         )
         
         if (is.null(ranking) || nrow(ranking) == 0) {
-          return(placeholder_chart(paste("Sin datos de indicadores para el canal", canal_sel)))
+          return(placeholder_chart(paste("Sin datos de indicadores para la selección actual de subcanal(es) del canal", canal_sel)))
         }
         
         ranking <- ranking %>%
