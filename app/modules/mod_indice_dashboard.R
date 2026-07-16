@@ -47,7 +47,7 @@ indice_dashboard_plot_ui <- function(id) {
                       type = 4, color = "#225495"))
     ),
     div(
-      class = "plot-row plot-row-full",
+      class = "plot-box-full",
       uiOutput(ns("box_plot_ranking_entidades_ui"))
     )
   )
