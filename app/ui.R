@@ -415,7 +415,7 @@ fluidPage(
 
       .plot-row {
         display: grid;
-        grid-template-columns: repeat(2, minmax(300px, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--spacing-lg);
         min-width: 0;
       }
