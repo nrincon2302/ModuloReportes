@@ -49,8 +49,13 @@ jobs:
             pkg-config libcurl4-openssl-dev libssl-dev \
             libxml2-dev libglpk-dev libfontconfig1-dev \
             libharfbuzz-dev libfribidi-dev libfreetype6-dev \
-            libpng-dev libtiff5-dev libjpeg-dev
+            libpng-dev libtiff5-dev libjpeg-dev \
+            libx11-dev pandoc
 
+      - name: Ensure rlang >= 1.3.0
+        run: |
+          R -e "if (!requireNamespace('rlang', quietly=TRUE) || packageVersion('rlang') < '1.3.0') install.packages('rlang', repos='https://cran.rstudio.com/')"
+          
       - name: Cache renv packages
         uses: actions/cache@v4
         with:
