@@ -227,7 +227,7 @@ cols_base_CO_tele <- c(
   "mod2_mod2_3_p18","mod2_mod2_3_p19","mod2_mod2_3_p20","mod2_mod2_3_p21",
   "mod2_mod2_3_p22","mod2_mod2_3_p23","mod2_mod2_3_p24","mod2_mod2_3_p26",
   "mod2_mod2_3_gp25_p25","mod2_mod2_3_gp25_p25_1","mod2_mod2_4_p27","mod2_mod2_4_p28",
-  "mod2_mod2_4_p29","meta_instanceID","system_submissionDate","system_updatedAt",
+  "mod2_mod2_4_p29","p31","meta_instanceID","system_submissionDate","system_updatedAt",
   "system_submitterId","system_submitterName","system_attachmentsPresent",
   "system_attachmentsExpected","system_status","system_reviewState","system_deviceId",
   "system_edits","system_formVersion","system_deletedAt"
@@ -259,7 +259,7 @@ cols_base_CO_virt <- c(
   "mod2_mod2_2_mod2_2_2_p22","mod2_mod2_2_mod2_2_2_p22_1",
   "mod2_mod2_2_mod2_2_2_p22_2","mod2_mod2_3_p23","mod2_mod2_3_p23_1",
   "mod2_mod2_3_p23_2","mod2_mod2_3_p24","mod2_mod2_3_p24_1",
-  "mod2_mod2_3_p24_2","mod2_mod2_3_p25","meta_instanceID",
+  "mod2_mod2_3_p24_2","mod2_mod2_3_p25","p26","meta_instanceID",
   "system_submissionDate","system_updatedAt","system_submitterId",
   "system_submitterName","system_attachmentsPresent",
   "system_attachmentsExpected","system_status","system_reviewState",
