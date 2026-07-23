@@ -711,7 +711,7 @@ calculo_criterios <- function() {
   # P3_4: Telefónico (base_CO_tele)
   Ind_p3_4 <- preparar_base(base_CO_tele, "mod1_gp1_p1") %>% 
     summarise(
-      c1_p3_d7_07_cr1 = sum(as.numeric(mod2_mod2_1_p8) == 1, na.rm = T)/sum(!is.na(mod2_mod2_1_p8)) < 0.9,
+      c1_p3_d7_07_cr1 = pct_sum_cols(mod2_mod2_1_p8) < 90,
       c1_p3_d7_08_cr1 = sum(as.numeric(mod2_mod2_1_p9) == 1, na.rm = T)/sum(!is.na(mod2_mod2_1_p9)) < 0.9,
       c1_p3_d7_09_cr1 = (sum(mod2_mod2_1_p10, na.rm = T)/sum(!is.na(mod2_mod2_1_p10))) < 0.9,
       c1_p3_d7_09_cr2 = (sum(mod2_mod2_1_p11, na.rm = T)/sum(!is.na(mod2_mod2_1_p11))) < 0.9,
