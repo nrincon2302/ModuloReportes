@@ -330,23 +330,23 @@ enviar_acciones_criticas_a_fastapi <- function(df_entidad_acciones) {
     return(NULL)
   }
   
-  .log_fastapi("INFO", paste("Eliminando reportes previos →", paste0(backend_url, "/reports")))
+  .log_fastapi("INFO", paste("Eliminando reportes previos →", paste0(backend_url, "/reports/")))
   del <- httr::DELETE(
-    url = paste0(backend_url, "/reports"),
+    url = paste0(backend_url, "/reports/"),
     httr::add_headers("Authorization" = paste("Bearer", token))
   )
-  .log_fastapi("INFO", paste("DELETE /reports → HTTP", httr::status_code(del)))
+  .log_fastapi("INFO", paste("DELETE /reports/ → HTTP", httr::status_code(del)))
   
-  .log_fastapi("INFO", paste("Enviando nuevos reportes →", paste0(backend_url, "/reports")))
+  .log_fastapi("INFO", paste("Enviando nuevos reportes →", paste0(backend_url, "/reports/")))
   res <- httr::POST(
-    url  = paste0(backend_url, "/reports"),
+    url  = paste0(backend_url, "/reports/"),
     body = json_payload,
     httr::add_headers(
       "Content-Type"  = "application/json",
       "Authorization" = paste("Bearer", token)
     )
   )
-  .log_fastapi("INFO", paste("POST /reports → HTTP", httr::status_code(res)))
+  .log_fastapi("INFO", paste("POST /reports/ → HTTP", httr::status_code(res)))
   
   res$status_code
 }
@@ -365,13 +365,13 @@ obtener_pqrds <- function() {
     return(tibble::tibble())
   }
   
-  url_pqrds <- paste0(backend_url, "/pqrds")
+  url_pqrds <- paste0(backend_url, "/pqrds/")
   .log_fastapi("INFO", paste("GET →", url_pqrds))
   
   res <- tryCatch(
     httr::GET(url_pqrds, httr::add_headers("Authorization" = paste("Bearer", token)), httr::timeout(30)),
     error = function(e) {
-      .log_fastapi("ERROR", paste("Fallo de red en /pqrds:", e$message))
+      .log_fastapi("ERROR", paste("Fallo de red en /pqrds/:", e$message))
       return(NULL)
     }
   )
@@ -382,12 +382,12 @@ obtener_pqrds <- function() {
   deny   <- res$headers[["x-deny-reason"]]
   if (!is.null(deny)) .log_fastapi("WARN", paste("Proxy bloqueó la petición. x-deny-reason:", deny))
   
-  .log_fastapi("INFO", paste("GET /pqrds → HTTP", status))
+  .log_fastapi("INFO", paste("GET /pqrds/ → HTTP", status))
   
   # Error HTTP → tibble vacío
   if (httr::http_error(res)) {
     body_raw <- tryCatch(httr::content(res, as = "text", encoding = "UTF-8"), error = function(e) "")
-    .log_fastapi("ERROR", paste("HTTP", status, "en /pqrds. Cuerpo:", substr(body_raw, 1, 300)))
+    .log_fastapi("ERROR", paste("HTTP", status, "en /pqrds/. Cuerpo:", substr(body_raw, 1, 300)))
     return(tibble::tibble())
   }
   
@@ -395,7 +395,7 @@ obtener_pqrds <- function() {
   
   # Sin contenido → tibble vacío
   if (is.null(contenido_raw) || !nzchar(contenido_raw)) {
-    .log_fastapi("WARN", "/pqrds devolvió respuesta vacía")
+    .log_fastapi("WARN", "/pqrds/ devolvió respuesta vacía")
     return(tibble::tibble())
   }
   
@@ -403,18 +403,18 @@ obtener_pqrds <- function() {
   data <- tryCatch(
     jsonlite::fromJSON(contenido_raw),
     error = function(e) {
-      .log_fastapi("ERROR", paste("JSON inválido en /pqrds:", e$message))
+      .log_fastapi("ERROR", paste("JSON inválido en /pqrds/:", e$message))
       NULL
     }
   )
   
   # JSON inválido o vacío
   if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
-    .log_fastapi("WARN", "/pqrds: datos vacíos o estructura inesperada")
+    .log_fastapi("WARN", "/pqrds/: datos vacíos o estructura inesperada")
     return(tibble::tibble())
   }
   
-  .log_fastapi("INFO", paste("/pqrds OK →", nrow(data), "filas,", ncol(data), "columnas:", paste(names(data), collapse = ", ")))
+  .log_fastapi("INFO", paste("/pqrds/ OK →", nrow(data), "filas,", ncol(data), "columnas:", paste(names(data), collapse = ", ")))
   
   # Convertir a tibble y retornar
   tibble::as_tibble(data)
@@ -434,13 +434,13 @@ obtener_habilidades <- function() {
     return(tibble::tibble())
   }
   
-  url_hab <- paste0(backend_url, "/habilidades")
+  url_hab <- paste0(backend_url, "/habilidades/")
   .log_fastapi("INFO", paste("GET →", url_hab))
   
   res <- tryCatch(
     httr::GET(url_hab, httr::add_headers("Authorization" = paste("Bearer", token)), httr::timeout(30)),
     error = function(e) {
-      .log_fastapi("ERROR", paste("Fallo de red en /habilidades:", e$message))
+      .log_fastapi("ERROR", paste("Fallo de red en /habilidades/:", e$message))
       return(NULL)
     }
   )
@@ -451,12 +451,12 @@ obtener_habilidades <- function() {
   deny   <- res$headers[["x-deny-reason"]]
   if (!is.null(deny)) .log_fastapi("WARN", paste("Proxy bloqueó la petición. x-deny-reason:", deny))
   
-  .log_fastapi("INFO", paste("GET /habilidades → HTTP", status))
+  .log_fastapi("INFO", paste("GET /habilidades/ → HTTP", status))
   
   # Si falla el request
   if (httr::http_error(res)) {
     body_raw <- tryCatch(httr::content(res, as = "text", encoding = "UTF-8"), error = function(e) "")
-    .log_fastapi("ERROR", paste("HTTP", status, "en /habilidades. Cuerpo:", substr(body_raw, 1, 300)))
+    .log_fastapi("ERROR", paste("HTTP", status, "en /habilidades/. Cuerpo:", substr(body_raw, 1, 300)))
     return(tibble::tibble())
   }
   
@@ -464,7 +464,7 @@ obtener_habilidades <- function() {
   
   # Si viene vacío
   if (is.null(contenido_raw) || !nzchar(contenido_raw)) {
-    .log_fastapi("WARN", "/habilidades devolvió respuesta vacía")
+    .log_fastapi("WARN", "/habilidades/ devolvió respuesta vacía")
     return(tibble::tibble())
   }
   
@@ -472,18 +472,18 @@ obtener_habilidades <- function() {
   data <- tryCatch(
     jsonlite::fromJSON(contenido_raw),
     error = function(e) {
-      .log_fastapi("ERROR", paste("JSON inválido en /habilidades:", e$message))
+      .log_fastapi("ERROR", paste("JSON inválido en /habilidades/:", e$message))
       NULL
     }
   )
   
   # Validación de estructura
   if (is.null(data) || !is.data.frame(data) || nrow(data) == 0) {
-    .log_fastapi("WARN", "/habilidades: datos vacíos o estructura inesperada")
+    .log_fastapi("WARN", "/habilidades/: datos vacíos o estructura inesperada")
     return(tibble::tibble())
   }
   
-  .log_fastapi("INFO", paste("/habilidades OK →", nrow(data), "filas,", ncol(data), "columnas:", paste(names(data), collapse = ", ")))
+  .log_fastapi("INFO", paste("/habilidades/ OK →", nrow(data), "filas,", ncol(data), "columnas:", paste(names(data), collapse = ", ")))
   
   # Retorna el dataframe tal cual
   tibble::as_tibble(data)
