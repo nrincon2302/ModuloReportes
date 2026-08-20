@@ -196,6 +196,21 @@ obtener_indicadores <- function(data, id_componente, id_pilar, id_dimension) {
       values_to = "Valor"
     ) %>%
     arrange(desc(Valor))
+
+  # Conserva el catálogo de indicadores PQRSD cuando no hay datos calculados.
+  if (as.numeric(id_componente) == 1 &&
+      as.numeric(id_pilar) == 1 &&
+      as.numeric(id_dimension) == 1) {
+    return(
+      df_indicadores %>%
+        filter(Id_Indicador %in% c("c1_p1_d1_01", "c1_p1_d1_02")) %>%
+        distinct(Id_Indicador, Indicador) %>%
+        mutate(Id_Indicador = as.character(Id_Indicador)) %>%
+        left_join(ranking_indicadores, by = "Id_Indicador") %>%
+        arrange(Id_Indicador) %>%
+        select(Id_Indicador, Indicador, Valor)
+    )
+  }
   
   if (nrow(ranking_indicadores) == 0) return(NULL)
   

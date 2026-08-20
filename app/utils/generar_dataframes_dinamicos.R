@@ -237,11 +237,13 @@ generar_dataframes_filtrados_subcanal <- function(anios = NULL, meses = NULL, ca
 # ============================================
 
 generar_indicadores_criticos <- function() {
-  # Obtener listado de indicadores críticos por entidad
-  df_inds <- calculo_indicadores("Entidad", 
-                                 NULL, NULL, NULL,
-                                 unique(df_entidades$Id_Entidad))[["Indicadores"]]
-  
+  # Obtener listado de indicadores por entidad
+  df_inds <- calculo_indicadores(
+    "Entidad",
+    NULL, NULL, NULL,
+    unique(df_entidades$Id_Entidad)
+  )[["Indicadores"]]
+
   df_inds_criticos <- df_inds %>%
     filter(Nivel != 0) %>%
     pivot_longer(
@@ -250,42 +252,79 @@ generar_indicadores_criticos <- function() {
       values_to = "Valor"
     ) %>%
     rename(Id_Entidad = Nivel) %>%
-    filter(Valor < 90)
-  
-  # Calcular criterios usando la función original
+    mutate(
+      Id_Entidad = as.character(Id_Entidad),
+      Id_Indicador = as.character(Id_Indicador),
+      Valor = hud_round_pct(Valor)
+    ) %>%
+    filter(hud_requiere_accion_mejora(Valor))
+
+  # Calcular criterios usando la función original y mapearlos al indicador
   df_entidad_acciones <- calculo_criterios() %>%
+    filter(Critico == TRUE) %>%
+    mutate(
+      Id_Entidad = as.character(Id_Entidad),
+      Id_Criterio = as.character(Id_Criterio)
+    ) %>%
     left_join(
       l_acciones %>%
-        rename(
-          Id_Indicador = ID_INDICADOR,
+        transmute(
+          Id_Criterio = as.character(IdCriterio),
+          Id_Indicador = as.character(ID_INDICADOR),
+          Criterios = CRITERIOS,
           `Acciones Sugeridas` = `ACCIONES REQUERIDA`,
-          `Herramientas de Apoyo` = `HERRAMIENTAS DE APOYO`,
-          Id_Criterio = IdCriterio,
-          Criterios = CRITERIOS
+          `Herramientas de Apoyo` = `HERRAMIENTAS DE APOYO`
         ),
       by = "Id_Criterio"
     ) %>%
-    filter(Critico == TRUE) %>%
-    select(-INDICADOR, -Critico)
-  
+    filter(!is.na(Id_Indicador)) %>%
+    distinct(Id_Entidad, Id_Indicador, Id_Criterio, .keep_all = TRUE)
+
   # Crear df_indicadores_criticos_por_entidad para compatibilidad
-  df_indicadores_criticos_por_entidad <<- df_entidad_acciones %>%
-    inner_join(df_inds_criticos, by = c("Id_Entidad", "Id_Indicador")) %>%
-    left_join(df_entidades %>% select(Id_Entidad, Entidad), by = "Id_Entidad") %>%
-    left_join(df_indicadores %>% select(-Componente, -Pilar), by = "Id_Indicador") %>%
+  df_indicadores_criticos_por_entidad <<- df_inds_criticos %>%
+    left_join(
+      df_entidad_acciones,
+      by = c("Id_Entidad", "Id_Indicador")
+    ) %>%
+    left_join(
+      l_acciones_resumen,
+      by = "Id_Indicador",
+      suffix = c("", "_resumen")
+    ) %>%
+    mutate(
+      Criterios = coalesce(Criterios, Criterios_resumen),
+      `Acciones Sugeridas` = coalesce(`Acciones Sugeridas`, `Acciones Sugeridas_resumen`),
+      `Herramientas de Apoyo` = coalesce(`Herramientas de Apoyo`, `Herramientas de Apoyo_resumen`)
+    ) %>%
+    select(-ends_with("_resumen")) %>%
+    left_join(
+      df_entidades %>%
+        mutate(Id_Entidad = as.character(Id_Entidad)) %>%
+        select(Id_Entidad, Entidad),
+      by = "Id_Entidad"
+    ) %>%
+    left_join(
+      df_indicadores %>%
+        mutate(Id_Indicador = as.character(Id_Indicador)) %>%
+        select(Id_Indicador, Indicador, Dimensión),
+      by = "Id_Indicador"
+    ) %>%
+    distinct(Id_Entidad, Id_Indicador, .keep_all = TRUE) %>%
     rename(`Valor Promedio` = Valor) %>%
-    select(Id_Entidad, 
-           Entidad, 
-           Id_Indicador,
-           Indicador, 
-           Id_Criterio, 
-           Criterios, 
-           Dimensión, 
-           `Valor Promedio`,
-           `Acciones Sugeridas`,
-           `Herramientas de Apoyo`)
-  
-  
+    select(
+      Id_Entidad,
+      Entidad,
+      Id_Indicador,
+      Indicador,
+      Id_Criterio,
+      Criterios,
+      Dimensión,
+      `Valor Promedio`,
+      `Acciones Sugeridas`,
+      `Herramientas de Apoyo`
+    ) %>%
+    arrange(Entidad, `Valor Promedio`, Indicador)
+
   # Enviar al backend de FastAPI
   res_fastapi_critico <- enviar_acciones_criticas_a_fastapi(df_indicadores_criticos_por_entidad)
   cat(paste0("✓ ", nrow(df_indicadores_criticos_por_entidad), " Acciones críticas enviadas a FastAPI.\n"))

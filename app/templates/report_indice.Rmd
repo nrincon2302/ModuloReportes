@@ -200,17 +200,31 @@ if (!is.null(datos_entidad) && nrow(datos_entidad) > 0) {
 # Función para determinar color según valor
 get_color <- function(value) {
   if (is.na(value)) return("#CCCCCC")
-  if (value < 90) return("#E3272A")   # Crítico: Rojo
-  if (value < 97) return("#F9D248")   # Aceptable: Amarillo
-  return("#8CBE23")                    # Óptimo: Verde
+  
+  value <- round(as.numeric(value), 1)
+
+  if (value < 81.6) return("#E3272A")
+  if (value < 85.5) return("#F9D248")
+
+  # escala de verdes
+  ratio <- (value - 85.5) / (100 - 85.5)
+  ratio <- max(0, min(1, ratio))
+
+  scales::col_numeric(
+    palette = c("#CDEB8B", "#8CBE23", "#2E7D32"),
+    domain = c(0, 1)
+  )(ratio)
 }
 
 # Función para determinar nivel textual
 get_nivel <- function(value) {
   if (is.na(value)) return("N/A")
-  if (value < 90) return("Crítico")
-  if (value < 97) return("Aceptable")
-  return("Óptimo")
+
+  value <- round(as.numeric(value), 1)
+
+  if (value >= 85.5) return("Óptimo")
+  if (value >= 81.6) return("Aceptable")
+  return("Crítico")
 }
 
 # Función para formatear lista de selecciones
@@ -309,10 +323,16 @@ if (tiene_datos && !is.na(indice_global)) {
   indice_plot <- pmin(pmax(as.numeric(indice_global), 0), 100)
 
   gauge_bands <- data.frame(
-    start = c(0, 90, 97),
-    end = c(90, 97, 100),
-    color = c("#E3272A", "#F9D248", "#8CBE23"),
-    label = c("Crítico", "Aceptable", "Óptimo")
+    start = c(0, 81.6, 85.5, 90, 95),
+    end   = c(81.6, 85.5, 90, 95, 100),
+    color = c(
+      "#E3272A",
+      "#F9D248",
+      "#CDEB8B",
+      "#8CBE23",
+      "#2E7D32"
+    ),
+    label = c("Crítico", "Aceptable", "Sobresaliente", "Excelente", "Óptimo")
   ) %>%
     mutate(
       start_rad = rescale(start, to = c(-pi/2, pi/2), from = c(0, 100)),
@@ -503,11 +523,7 @@ if (!is.null(datos_entidad) && nrow(datos_entidad) > 0) {
   
   # Asignar colores basados en el valor
   datos_entidad <- datos_entidad %>%
-    mutate(color = case_when(
-      Indice < 90 ~ "#E3272A",  # Rojo
-      Indice < 97 ~ "#F9D248",  # Amarillo
-      TRUE ~ "#8CBE23"          # Verde
-    ))
+    mutate(color = sapply(Indice, get_color))
   
   ggplot(datos_entidad, aes(x = Indice, y = Nombre_Entidad, fill = color)) +
     geom_col(width = 0.65) +

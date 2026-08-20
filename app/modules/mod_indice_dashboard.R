@@ -103,9 +103,9 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
         if (is.na(indice_global))
           return(.error_chart("No hay datos para el indice global."))
         
-        indice_global <- round(indice_global, 1)
-        nivel_texto   <- if (indice_global < 90) "Critico" else if (indice_global < 97) "Aceptable" else "Optimo"
-        color_nivel   <- if (indice_global < 90) "#E3272A" else if (indice_global < 97) "#F9D248" else "#8CBE23"
+        indice_global <- hud_round_pct(indice_global)
+        nivel_texto   <- hud_nivel_indicador(indice_global)
+        color_nivel   <- hud_color_indicador(indice_global)
         sub_text <- paste0("<span style='font-size:16px;'>El indice es <b style='color:black;'>",
                            indice_global, "%</b> y es <b style='color:", color_nivel, ";'>",
                            nivel_texto, "</b></span>")
@@ -114,11 +114,13 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
           hc_chart(type = "gauge") %>%
           hc_pane(startAngle = -150, endAngle = 150, size = "110%") %>%
           hc_yAxis(min = 0, max = 100,
-                   plotBands = list(
-                     list(from = 0, to = 90, color = "#E3272A"),
-                     list(from = 90, to = 97, color = "#F9D248"),
-                     list(from = 97, to = 100, color = "#8CBE23")
-                   )) %>%
+                  plotBands = list(
+                    list(from = 0, to = 81.5, color = "#E3272A"),
+                    list(from = 81.6, to = 85.4, color = "#F9D248"),
+                    list(from = 85.5, to = 89.9, color = "#CDEB8B"),
+                    list(from = 90.0, to = 94.9, color = "#8CBE23"),
+                    list(from = 95.0, to = 100, color = "#2E7D32")
+                  )) %>%
           hc_add_series(name = "Indice", data = list(indice_global),
                         dataLabels = list(enabled = TRUE, format = "{y}",
                                           style = list(fontSize = "24px"),
@@ -147,12 +149,17 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
         if (is.null(pilares_data) || nrow(pilares_data) == 0)
           return(.error_chart("No hay datos de pilares disponibles."))
         
-        hchart(pilares_data %>% mutate(Valor = round(as.numeric(Valor), 1)),
-               "bar", hcaes(x = Pilar, y = Valor, color = Valor)) %>%
+          hchart(
+            pilares_data %>%
+              mutate(
+                Valor = hud_round_pct(Valor),
+                Color = hud_color_indicador(Valor)
+              ),
+            "bar",
+            hcaes(x = Pilar, y = Valor, color = Color)
+          ) %>%
           hc_plotOptions(bar = list(depth = 40, shape = "cylinder",
                                     dataLabels = list(enabled = TRUE, format = "{y}%"))) %>%
-          hc_colorAxis(stops = color_stops(n = 3, colors = c("#E3272A", "#F9D248", "#8CBE23")),
-                       min = 85, max = 100) %>%
           hc_title(text = "Indice por Pilar") %>%
           hc_legend(enabled = FALSE)
       }, error = function(e) .error_chart(paste("Error al cargar pilares:", e$message)))
@@ -228,12 +235,8 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
         
         ranking_coloreado <- ranking %>%
           mutate(
-            Indice = as.numeric(round(Valor, 1)),
-            Color = case_when(
-              Indice >= 97 ~ "#8CBE23",
-              Indice >= 90 ~ "#F9D248",
-              TRUE ~ "#E3272A"
-            )
+            Indice = hud_round_pct(Valor),
+            Color = hud_color_indicador(Indice)
           )
         
         hchart(ranking_coloreado, "bar", hcaes(x = Entidad, y = Indice, color = Color)) %>%
@@ -258,10 +261,18 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
         if (is.null(datos) || nrow(datos) == 0)
           return(.error_chart("Sin historico disponible para los filtros seleccionados."))
         
-        hchart(datos %>% mutate(Indice = round(as.numeric(Indice), 1)),
-               "column", hcaes(x = Periodo, y = Indice), color = "#225495") %>%
+        hchart(
+          datos %>%
+            mutate(
+              Indice = hud_round_pct(Indice),
+              Color = hud_color_indicador(Indice)
+            ),
+          "column",
+          hcaes(x = Periodo, y = Indice, color = Color)
+        ) %>%
           hc_plotOptions(column = list(depth = 40, shape = "cylinder",
-                                       dataLabels = list(enabled = TRUE, format = "{y}%"))) %>%
+                                       dataLabels = list(enabled = TRUE, format = "{y}%"),
+                                       colorByPoint = TRUE)) %>%
           hc_title(text = "Evolución Histórica") %>%
           hc_subtitle(text = "Si el Periodo de Análisis es 'Todos', solo se muestran los 4 meses más recientes") %>%
           hc_xAxis(title = list(text = "Periodo")) %>%
@@ -302,7 +313,7 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
           }
           
           # Redondear antes del hcaes para que el tooltip muestre "Indice" limpio
-          datos_graf <- datos_graf %>% mutate(Indice = round(as.numeric(Indice), 1))
+          datos_graf <- datos_graf %>% mutate(Indice = hud_round_pct(Indice))
           
           titulo_graf <- "Desempeño por Canal"
           columna_cat <- "Canal"
@@ -337,12 +348,14 @@ indice_dashboard_server <- function(id, id_componente_reactive, rv_bg, signals, 
         if (is.null(datos_graf) || nrow(datos_graf) == 0)
           return(.error_chart("Sin datos de canal disponibles."))
         
+        datos_graf <- datos_graf %>%
+          mutate(Color = hud_color_indicador(Indice))
+
         hchart(datos_graf, "column",
-               hcaes(x = !!sym(columna_cat), y = Indice, color = Indice)) %>%
+               hcaes(x = !!sym(columna_cat), y = Indice, color = Color)) %>%
           hc_plotOptions(column = list(depth = 40, shape = "cylinder",
-                                       dataLabels = list(enabled = TRUE, format = "{y}%"))) %>%
-          hc_colorAxis(stops = color_stops(n = 3, colors = c("#E3242A", "#F9D248", "#225495")),
-                       min = 60, max = 100) %>%
+                                       dataLabels = list(enabled = TRUE, format = "{y}%"),
+                                       colorByPoint = TRUE)) %>%
           hc_title(text = titulo_graf) %>%
           hc_legend(enabled = FALSE)
       }, error = function(e) .error_chart(paste("Error en grafica de canal:", e$message)))

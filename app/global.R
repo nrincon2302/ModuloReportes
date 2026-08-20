@@ -232,12 +232,105 @@ l_acciones_2 <- df_joined %>%
 l_acciones <- bind_rows(l_acciones_1, l_acciones_2)
 
 # =========================================================
+# HELPERS GLOBALES DE SEMAFORIZACIÓN Y ACCIONES DE MEJORA
+# =========================================================
+
+hud_round_pct <- function(x) {
+  round(as.numeric(x), 1)
+}
+
+hud_estado_indicador <- function(x) {
+  x <- hud_round_pct(x)
+
+  dplyr::case_when(
+    is.na(x)  ~ NA_character_,
+    x >= 85.5 ~ "verde",
+    x >= 81.6 ~ "amarillo",
+    TRUE      ~ "rojo"
+  )
+}
+
+hud_color_indicador <- function(x) {
+  x <- hud_round_pct(x)
+
+  dplyr::case_when(
+    is.na(x) ~ "#CCCCCC",
+    
+    # 🔴 ROJO (igual)
+    x < 81.6 ~ "#E3272A",
+    
+    # 🟡 AMARILLO (igual)
+    x < 85.5 ~ "#F9D248",
+    
+    # 🟢 VERDE ESCALADO
+    TRUE ~ {
+      # normalizamos entre 85.5 y 100
+      ratio <- (x - 85.5) / (100 - 85.5)
+      ratio <- max(0, min(1, ratio))
+      
+      # colores: verde claro → verde fuerte
+      scales::col_numeric(
+        palette = c("#CDEB8B", "#8CBE23", "#2E7D32"),
+        domain = c(0, 1)
+      )(ratio)
+    }
+  )
+}
+
+hud_nivel_indicador <- function(x) {
+  estado <- hud_estado_indicador(x)
+
+  dplyr::case_when(
+    is.na(estado)        ~ "N/A",
+    estado == "verde"    ~ "Óptimo",
+    estado == "amarillo" ~ "Aceptable",
+    TRUE                 ~ "Crítico"
+  )
+}
+
+hud_requiere_accion_mejora <- function(x) {
+  x <- hud_round_pct(x)
+  !is.na(x) & x < 100
+}
+
+collapse_unique_text <- function(x, sep = "<br><br>") {
+  x <- as.character(x)
+  x <- trimws(x)
+  x <- x[!is.na(x) & nzchar(x)]
+  x <- unique(x)
+
+  if (length(x) == 0) {
+    return(NA_character_)
+  }
+
+  paste(x, collapse = sep)
+}
+
+l_acciones_resumen <- l_acciones %>%
+  transmute(
+    Id_Indicador = as.character(ID_INDICADOR),
+    Criterios = CRITERIOS,
+    `Acciones Sugeridas` = `ACCIONES REQUERIDA`,
+    `Herramientas de Apoyo` = `HERRAMIENTAS DE APOYO`
+  ) %>%
+  group_by(Id_Indicador) %>%
+  summarise(
+    Criterios = collapse_unique_text(Criterios),
+    `Acciones Sugeridas` = collapse_unique_text(`Acciones Sugeridas`),
+    `Herramientas de Apoyo` = collapse_unique_text(`Herramientas de Apoyo`),
+    .groups = "drop"
+  )
+
+# =========================================================
 # CONEXIÓN CON FASTAPI PARA MÓDULOS CON BASE DE DATOS
 # =========================================================
 
 backend_url <- Sys.getenv("FASTAPI_URL")
 fa_username <- Sys.getenv("FASTAPI_USERNAME")
 fa_password <- Sys.getenv("FASTAPI_PASSWORD")
+fa_verify_ssl <- !tolower(trimws(Sys.getenv("FASTAPI_VERIFY_SSL", "true"))) %in%
+  c("false", "0", "no")
+fastapi_ssl_config <- httr::config(ssl_verifypeer = fa_verify_ssl)
 
 # ---------------------------------------------------------
 # Helper de logging: escribe en consola Y en archivo de log
@@ -268,6 +361,7 @@ autenticar_fastapi <- function() {
       url    = paste0(backend_url, "/auth/token"),
       body   = list(username = fa_username, password = fa_password),
       encode = "form",
+      fastapi_ssl_config,
       httr::timeout(15)
     ),
     error = function(e) {
@@ -333,6 +427,7 @@ enviar_acciones_criticas_a_fastapi <- function(df_entidad_acciones) {
   .log_fastapi("INFO", paste("Eliminando reportes previos →", paste0(backend_url, "/reports/")))
   del <- httr::DELETE(
     url = paste0(backend_url, "/reports/"),
+    fastapi_ssl_config,
     httr::add_headers("Authorization" = paste("Bearer", token))
   )
   .log_fastapi("INFO", paste("DELETE /reports/ → HTTP", httr::status_code(del)))
@@ -341,6 +436,7 @@ enviar_acciones_criticas_a_fastapi <- function(df_entidad_acciones) {
   res <- httr::POST(
     url  = paste0(backend_url, "/reports/"),
     body = json_payload,
+    fastapi_ssl_config,
     httr::add_headers(
       "Content-Type"  = "application/json",
       "Authorization" = paste("Bearer", token)
@@ -369,7 +465,7 @@ obtener_pqrds <- function() {
   .log_fastapi("INFO", paste("GET →", url_pqrds))
   
   res <- tryCatch(
-    httr::GET(url_pqrds, httr::add_headers("Authorization" = paste("Bearer", token)), httr::timeout(30)),
+    httr::GET(url_pqrds, fastapi_ssl_config, httr::add_headers("Authorization" = paste("Bearer", token)), httr::timeout(30)),
     error = function(e) {
       .log_fastapi("ERROR", paste("Fallo de red en /pqrds/:", e$message))
       return(NULL)
@@ -438,7 +534,7 @@ obtener_habilidades <- function() {
   .log_fastapi("INFO", paste("GET →", url_hab))
   
   res <- tryCatch(
-    httr::GET(url_hab, httr::add_headers("Authorization" = paste("Bearer", token)), httr::timeout(30)),
+    httr::GET(url_hab, fastapi_ssl_config, httr::add_headers("Authorization" = paste("Bearer", token)), httr::timeout(30)),
     error = function(e) {
       .log_fastapi("ERROR", paste("Fallo de red en /habilidades/:", e$message))
       return(NULL)
