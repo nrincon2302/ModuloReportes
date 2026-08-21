@@ -58,12 +58,8 @@ dimension_preview_server <- function(id, id_componente, id_pilar, rv_bg, signals
       
       ranking_coloreado <- ranking %>%
         mutate(
-          Indice = round(as.numeric(Valor), 1),
-          Color = case_when(
-            Indice >= 97 ~ "#8CBE23",
-            Indice >= 90 ~ "#F9D248",
-            TRUE ~ "#E3272A"
-          )
+          Indice = hud_round_pct(Valor),
+          Color = hud_color_indicador(Indice)
         )
       
       hchart(ranking_coloreado, "bar",
@@ -370,14 +366,42 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
       }
       
       # Redondear antes del hcaes para que el tooltip muestre "Valor" limpio
+      es_calidad_pqrsd <- as.numeric(id_comp) == 1 &&
+        as.numeric(id_pil) == 1 &&
+        as.numeric(id_dim) == 1
+
+      if (es_calidad_pqrsd) {
+        ranking <- ranking %>%
+          mutate(
+            Valor = hud_round_pct(Valor),
+            SinDatos = is.na(Valor),
+            ValorGrafica = ifelse(SinDatos, 0, Valor),
+            Color = ifelse(SinDatos, "#9E9E9E", hud_color_indicador(Valor))
+          )
+
+        return(
+          hchart(ranking, "bar", hcaes(x = Indicador, y = ValorGrafica, color = Color)) %>%
+            hc_plotOptions(bar = list(
+              depth = 40,
+              shape = "cylinder",
+              dataLabels = list(
+                enabled = TRUE,
+                formatter = JS("function () { return this.point.SinDatos ? 'Sin datos' : Highcharts.numberFormat(this.y, 1) + '%'; }")
+              ),
+              colorByPoint = TRUE
+            )) %>%
+            hc_tooltip(
+              formatter = JS("function () { return '<b>' + this.point.Indicador + '</b><br/>' + (this.point.SinDatos ? 'Sin datos para los filtros seleccionados' : Highcharts.numberFormat(this.y, 1) + '%'); }")
+            ) %>%
+            hc_title(text = "Ranking de Indicadores") %>%
+            hc_legend(enabled = FALSE)
+        )
+      }
+
       ranking <- ranking %>%
         mutate(
-          Valor = round(as.numeric(Valor), 1),
-          Color = dplyr::case_when(
-            Valor >= 97 ~ "#8CBE23",
-            Valor >= 90 ~ "#F9D248",
-            TRUE        ~ "#E3272A"
-          )
+          Valor = hud_round_pct(Valor),
+          Color = hud_color_indicador(Valor)
         )
       
       hchart(ranking, "bar", hcaes(x = Indicador, y = Valor, color = Color)) %>%
@@ -424,12 +448,17 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         }
         
         # Redondear antes del hcaes para que el tooltip muestre "Valor" limpio
-        datos <- datos %>% mutate(Valor = round(as.numeric(Indice), 1))
+        datos <- datos %>%
+          mutate(
+            Valor = hud_round_pct(Indice),
+            Color = hud_color_indicador(Valor)
+          )
         
         hchart(datos, "column",
-               hcaes(x = Canal, y = Valor), color = color_azul) %>%
+               hcaes(x = Canal, y = Valor, color = Color)) %>%
           hc_plotOptions(column = list(depth = 40, shape = 'cylinder',
-                                       dataLabels = list(enabled = TRUE, format = '{y}%'))) %>%
+                                       dataLabels = list(enabled = TRUE, format = '{y}%'),
+                                       colorByPoint = TRUE)) %>%
           hc_title(text = "Desempeño por Canal") %>%
           hc_yAxis(min = 0, max = 100) %>%
           hc_legend(enabled = FALSE)
@@ -462,12 +491,14 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
           return(placeholder_chart("La información por Canal no está disponible/no aplica para este Indicador"))
         }
         
+        resultados <- resultados %>%
+          mutate(Color = hud_color_indicador(Valor))
+
         hchart(resultados, "column",
-               hcaes(x = Subcanal, y = Valor, color = Valor)) %>%
+               hcaes(x = Subcanal, y = Valor, color = Color)) %>%
           hc_plotOptions(column = list(depth = 40, shape = 'cylinder',
-                                       dataLabels = list(enabled = TRUE, format = '{y}%'))) %>%
-          hc_colorAxis(stops = color_stops(n = 3, colors = c("#E3242A", "#F9D248", "#225495")),
-                       min = 60, max = 100) %>%
+                                       dataLabels = list(enabled = TRUE, format = '{y}%'),
+                                       colorByPoint = TRUE)) %>%
           hc_title(text = paste("Subcanales -", canal_sel)) %>%
           hc_yAxis(min = 0, max = 100) %>%
           hc_legend(enabled = FALSE)
@@ -493,10 +524,18 @@ dimension_view_server <- function(id, id_componente, id_pilar, id_dimension, rv_
         return(placeholder_chart("La información por Histórico no está disponible/no aplica para este Indicador"))
       }
       
-      hchart(datos %>% mutate(Valor = round(as.numeric(Valor), 1)), "column", 
-             hcaes(x = Periodo, y = Valor), color = color_azul) %>%
+      hchart(
+        datos %>%
+          mutate(
+            Valor = hud_round_pct(Valor),
+            Color = hud_color_indicador(Valor)
+          ),
+        "column",
+        hcaes(x = Periodo, y = Valor, color = Color)
+      ) %>%
         hc_plotOptions(column = list(depth = 40, shape = 'cylinder',
-                                     dataLabels = list(enabled = TRUE, format = '{y}%'))) %>%
+                                     dataLabels = list(enabled = TRUE, format = '{y}%'),
+                                     colorByPoint = TRUE)) %>%
         hc_title(text = "Evolución Histórica") %>%
         hc_subtitle(text = "Si el Periodo de Análisis es 'Todos', solo se muestran los 4 meses más recientes") %>%
         hc_xAxis(title = list(text = "Periodo")) %>%

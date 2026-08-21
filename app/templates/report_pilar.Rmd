@@ -128,9 +128,19 @@ if (tiene_datos) {
 # Función para determinar color según valor
 get_color <- function(value) {
   if (is.na(value)) return("#CCCCCC")
-  if (value < 90) return("#E3272A")   # Crítico: Rojo
-  if (value < 97) return("#F9D248")   # Aceptable: Amarillo
-  return("#8CBE23")                    # Óptimo: Verde
+
+  value <- round(as.numeric(value), 1)
+
+  if (value < 81.6) return("#E3272A")
+  if (value < 85.5) return("#F9D248")
+
+  ratio <- (value - 85.5) / (100 - 85.5)
+  ratio <- max(0, min(1, ratio))
+
+  scales::col_numeric(
+    palette = c("#CDEB8B", "#8CBE23", "#2E7D32"),
+    domain = c(0, 1)
+  )(ratio)
 }
 
 # Función para formatear lista de selecciones
